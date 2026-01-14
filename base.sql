@@ -24,7 +24,7 @@ CREATE TABLE utilisateurs (
 -- Table des lieux (ex: intersections, quartiers)
 CREATE TABLE Lieux (
    Id_Lieux SERIAL PRIMARY KEY,
-   libelet VARCHAR(50) NOT NULL,
+   libelle VARCHAR(50) NOT NULL,
    ville VARCHAR(50),
    description TEXT
 );
