@@ -88,19 +88,6 @@ public class AuthController {
 
             return ResponseEntity.ok("Firebase login successful for " + email);
         } catch (com.google.firebase.auth.FirebaseAuthException e) {
-            // Token invalide : incrémenter tentatives
-            String email = extractEmailFromInvalidToken(request.getToken());  // Méthode à implémenter ou simplifier
-            if (email != null) {
-                Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
-                if (user != null) {
-                    int tentatives = user.getTentativesEchec() + 1;
-                    user.setTentativesEchec(tentatives);
-                    if (tentatives >= 3) {  // Limite paramétrable
-                        user.setEstBloque(true);
-                    }
-                    utilisateurRepository.save(user);
-                }
-            }
             return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
         }
     }
