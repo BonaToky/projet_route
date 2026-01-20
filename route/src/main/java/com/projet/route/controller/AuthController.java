@@ -9,6 +9,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,6 +149,51 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/users")
+    public ResponseEntity<?> createUser(@RequestBody RegisterRequest request) {
+        if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
+        Role role = roleRepository.findByNom("UTILISATEUR");
+        Utilisateur user = new Utilisateur();
+        user.setNomUtilisateur(request.getNomUtilisateur());
+        user.setEmail(request.getEmail());
+        user.setMotDePasse(request.getPassword());
+        user.setRole(role);
+        utilisateurRepository.save(user);
+        return ResponseEntity.ok("User created successfully");
+    }
+
+    @PutMapping("/users/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest request) {
+        Optional<Utilisateur> optUser = utilisateurRepository.findById(id);
+        if (!optUser.isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        // Check if email is already used by another user
+        Optional<Utilisateur> existingUser = utilisateurRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent() && !existingUser.get().getIdUtilisateur().equals(id)) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
+        Utilisateur user = optUser.get();
+        user.setNomUtilisateur(request.getNomUtilisateur());
+        user.setEmail(request.getEmail());
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            user.setMotDePasse(request.getPassword());
+        }
+        utilisateurRepository.save(user);
+        return ResponseEntity.ok("User updated successfully");
+    }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        if (!utilisateurRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        utilisateurRepository.deleteById(id);
+        return ResponseEntity.ok("User deleted successfully");
+    }
+
     public static class LoginRequest {
         private String email;
         private String password;
@@ -158,6 +205,19 @@ public class AuthController {
     }
 
     public static class RegisterRequest {
+        private String nomUtilisateur;
+        private String email;
+        private String password;
+
+        public String getNomUtilisateur() { return nomUtilisateur; }
+        public void setNomUtilisateur(String nomUtilisateur) { this.nomUtilisateur = nomUtilisateur; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class UpdateUserRequest {
         private String nomUtilisateur;
         private String email;
         private String password;
