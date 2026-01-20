@@ -1,8 +1,3 @@
-\c postgres;
-DROP DATABASE IF EXISTS route;
-CREATE DATABASE route;
-\c route
-
 CREATE TABLE roles (
    id SERIAL PRIMARY KEY,
    nom VARCHAR(50) UNIQUE NOT NULL
@@ -29,8 +24,8 @@ INSERT INTO utilisateurs (id_role, nom_utilisateur, email, mot_de_passe, source_
 VALUES (2, 'admin', 'admin@gmail.com', 'admin', 'local');
 
 -- Utilisateur de test pour mobile
-INSERT INTO utilisateurs (id_role, nom_utilisateur, email, mot_de_passe, source_auth)
-VALUES (1, 'testuser', 'test@example.com', 'password', 'local');
+-- INSERT INTO utilisateurs (id_role, nom_utilisateur, email, mot_de_passe, source_auth)
+-- VALUES (1, 'testuser', 'test@example.com', 'password', 'local');
 
 CREATE TABLE sessions (
    id SERIAL PRIMARY KEY,
@@ -60,6 +55,22 @@ CREATE TABLE Lieux (
    description TEXT
 );
 
+CREATE TABLE entreprise (
+   id_entreprise SERIAL PRIMARY KEY,
+   nom VARCHAR(100) NOT NULL
+);
+
+-- Insérer des entreprises d'exemple
+INSERT INTO entreprise (nom) VALUES
+('Colas Madagascar'),
+('Société Routière de Madagascar'),
+('TP Madagascar'),
+('BTP Construction'),
+('Route Express'),
+('Infra Madagascar'),
+('Travaux Publics Antananarivo'),
+('Génie Civil Madagascar');
+
 CREATE TABLE signalement (
    Id_signalement SERIAL PRIMARY KEY,
    surface DECIMAL(10,2),
@@ -75,12 +86,19 @@ CREATE TABLE signalement (
 );
 
 ALTER TABLE signalement DROP COLUMN type_probleme;
+ALTER TABLE signalement DROP COLUMN statut;
 
 CREATE TABLE travaux (
    id SERIAL PRIMARY KEY,
+   id_entreprise INT,
    id_signalement INT,
    budget DECIMAL(20,2),
    date_debut_travaux DATE,
    date_fin_travaux DATE,
-   avancement DECIMAL(5,2) DEFAULT 0.00 -- pourcentage d'avancement
+   avancement DECIMAL(5,2) DEFAULT 0.00, -- pourcentage d'avancement
+   FOREIGN KEY (id_entreprise) REFERENCES entreprise(id_entreprise),
+   FOREIGN KEY (id_signalement) REFERENCES signalement(Id_signalement)
 );
+
+-- Supprimer la colonne statut si elle existe (migration)
+ALTER TABLE travaux DROP COLUMN IF EXISTS statut;

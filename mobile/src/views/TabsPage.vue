@@ -31,22 +31,29 @@
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
 import { ellipse, square, triangle, person, map, list, logOut } from 'ionicons/icons';
 import { ref, onMounted } from 'vue';
-import { auth } from '@/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 
 const isAuthenticated = ref(false);
 const router = useRouter();
 
 onMounted(() => {
-  onAuthStateChanged(auth, (user) => {
-    isAuthenticated.value = !!user;
+  // Vérifier l'authentification via localStorage
+  const user = localStorage.getItem('currentUser');
+  isAuthenticated.value = !!user;
+  
+  // Écouter les changements dans localStorage
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'currentUser') {
+      isAuthenticated.value = !!e.newValue;
+    }
   });
 });
 
 const logout = async () => {
   try {
-    await signOut(auth);
+    // Supprimer l'utilisateur du localStorage
+    localStorage.removeItem('currentUser');
+    isAuthenticated.value = false;
     router.push('/tabs/tab1');
   } catch (error) {
     console.error('Erreur lors de la déconnexion:', error);

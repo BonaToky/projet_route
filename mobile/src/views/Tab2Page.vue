@@ -3,7 +3,7 @@
     <ion-header>
       <ion-toolbar>
         <ion-title>Carte des problèmes</ion-title>
-      <ion-buttons slot="end">
+        <ion-buttons slot="end">
           <ion-button @click="openRecapModal">
             Récapitulation
           </ion-button>
@@ -148,16 +148,49 @@ const loadAllReports = async () => {
   });
   allMarkers.value = [];
   try {
-    const querySnapshot = await getDocs(collection(db, 'signalements'));
-    querySnapshot.forEach((doc: any) => {
+    // Récupérer les signalements
+    const signalementsSnapshot = await getDocs(collection(db, 'signalements'));
+    const signalements: any[] = [];
+    signalementsSnapshot.forEach((doc: any) => {
       const data = doc.data();
-      const marker = L.marker([data.latitude, data.longitude]).addTo(map!);
-      marker.bindPopup(`
-        <b>Nid de poule</b><br>
-        Surface: ${data.surface} m²<br>
-        Statut: ${data.statut}<br>
-        Date: ${data.date_ajoute.toDate().toLocaleDateString('fr-FR')}
-      `);
+      signalements.push({
+        id: doc.id,
+        ...data
+      });
+    });
+
+    // Récupérer les travaux
+    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
+    const travaux: any[] = [];
+    travauxSnapshot.forEach((doc: any) => {
+      const data = doc.data();
+      travaux.push(data);
+    });
+
+    // Créer les markers avec les informations de travaux
+    signalements.forEach((signalement) => {
+      const travauxAssocie = travaux.find(t => t.id_signalement === signalement.id);
+      
+      const marker = L.marker([signalement.latitude, signalement.longitude]).addTo(map!);
+      
+      let popupContent = `
+        <b>Signalement</b><br>
+        Surface: ${signalement.surface} m²<br>
+        Description: ${signalement.description}<br>
+        ${travauxAssocie ? `Avancement: ${travauxAssocie.avancement}%` : 'Statut: Non traité'}<br>
+        Date: ${signalement.date_ajoute.toDate().toLocaleDateString('fr-FR')}
+      `;
+      
+      if (travauxAssocie) {
+        // Pour l'instant, on affiche l'ID de l'entreprise, mais idéalement on récupérerait le nom
+        popupContent += `<br>
+        Entreprise ID: ${travauxAssocie.id_entreprise}<br>
+        Budget: ${travauxAssocie.budget} Ar<br>
+        Avancement: ${travauxAssocie.avancement}%
+        `;
+      }
+      
+      marker.bindPopup(popupContent);
       allMarkers.value.push(marker);
     });
   } catch (error: any) {
@@ -201,7 +234,7 @@ const submitReport = async () => {
     await addDoc(collection(db, 'signalements'), {
       latitude: currentLatLng.value.lat,
       longitude: currentLatLng.value.lng,
-      Id_User: user.idUtilisateur, // Use user ID
+      Id_User: user.id, // Use Firebase user ID
       surface: parseFloat(surface.value) || 0,
       description: description.value,
       date_ajoute: new Date(),

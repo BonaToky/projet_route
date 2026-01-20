@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
-import { auth } from '@/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import TabsPage from '../views/TabsPage.vue'
 
 const routes: Array<RouteRecordRaw> = [
@@ -45,14 +43,13 @@ router.beforeEach((to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
 
   if (requiresAuth) {
-    // Vérifier si l'utilisateur est connecté
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        next();
-      } else {
-        next('/tabs/tab1');
-      }
-    });
+    // Vérifier si l'utilisateur est connecté via localStorage
+    const user = localStorage.getItem('currentUser');
+    if (user) {
+      next();
+    } else {
+      next('/tabs/tab1');
+    }
   } else {
     next();
   }

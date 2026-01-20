@@ -17,7 +17,7 @@
           <ion-label>
             <h2>Nid de poule - {{ report.surface }} m²</h2>
             <p>{{ report.description }}</p>
-            <p><small>Statut: {{ report.statut }} | Date: {{ formatDate(report.date_ajoute) }}</small></p>
+            <p><small>{{ report.travaux ? `Avancement: ${report.travaux.avancement}%` : 'Statut: Non traité' }} | Date: {{ formatDate(report.date_ajoute) }}</small></p>
           </ion-label>
         </ion-item>
       </ion-list>
