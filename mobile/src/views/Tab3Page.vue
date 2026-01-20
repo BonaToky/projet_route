@@ -58,19 +58,20 @@ const showToast = ref(false);
 const toastMessage = ref('');
 
 onMounted(() => {
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      await fetchReports(user.uid);
-    } else {
-      toastMessage.value = 'Veuillez vous connecter';
-      showToast.value = true;
-    }
-  });
+  // Vérifier l'authentification
+  const userStr = localStorage.getItem('currentUser');
+  if (!userStr) {
+    toastMessage.value = 'Veuillez vous connecter';
+    showToast.value = true;
+    return;
+  }
+  const user = JSON.parse(userStr);
+  fetchReports(user.email);
 });
 
-const fetchReports = async (userId: string) => {
+const fetchReports = async (userEmail: string) => {
   try {
-    const q = query(collection(db, 'signalements'), where('Id_User', '==', userId));
+    const q = query(collection(db, 'signalements'), where('Id_User', '==', userEmail));
     const querySnapshot = await getDocs(q);
     reports.value = querySnapshot.docs.map(doc => ({
       id: doc.id,
