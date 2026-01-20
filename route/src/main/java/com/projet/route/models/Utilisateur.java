@@ -1,4 +1,4 @@
-package com.projet.route.entity;
+package com.projet.route.models;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

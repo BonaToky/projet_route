@@ -1,7 +1,8 @@
 package com.projet.route.repository;
 
-import com.projet.route.entity.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.projet.route.models.Utilisateur;
 
 import java.util.Optional;
 

@@ -1,6 +1,6 @@
 package com.projet.route.service;
 
-import com.projet.route.entity.Utilisateur;
+import com.projet.route.models.Utilisateur;
 import com.projet.route.repository.UtilisateurRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

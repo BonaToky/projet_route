@@ -1,7 +1,7 @@
 package com.projet.route.controller;
 
-import com.projet.route.entity.Role;
-import com.projet.route.entity.Utilisateur;
+import com.projet.route.models.Role;
+import com.projet.route.models.Utilisateur;
 import com.projet.route.repository.RoleRepository;
 import com.projet.route.repository.UtilisateurRepository;
 import org.springframework.http.ResponseEntity;
