@@ -1,6 +1,6 @@
 package com.projet.route.controller;
 
-import com.projet.route.entity.Signalement;
+import com.projet.route.models.Signalement;
 import com.projet.route.repository.SignalementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
