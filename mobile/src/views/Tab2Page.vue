@@ -3,9 +3,12 @@
     <ion-header>
       <ion-toolbar>
         <ion-title>{{ isViewMode ? 'Voir les problèmes' : 'Signaler un problème' }}</ion-title>
-        <ion-buttons slot="end">
+      <ion-buttons slot="end">
           <ion-button @click="toggleMode">
             {{ isViewMode ? 'Signaler' : 'Voir' }}
+          </ion-button>
+          <ion-button @click="openRecapModal">
+            Récapitulation
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -36,19 +39,37 @@
         </ion-content>
       </ion-modal>
 
-      <ion-toast
-        :is-open="showToast"
-        :message="toastMessage"
-        :duration="2000"
-        @didDismiss="showToast = false"
-      ></ion-toast>
+      <!-- Modal pour le récapitulatif -->
+      <ion-modal :is-open="showRecapModal" @will-dismiss="showRecapModal = false">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>Récapitulation des signalements</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="showRecapModal = false">Fermer</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <ion-list>
+            <ion-item>
+              <ion-label>Nombre de points signalés</ion-label>
+              <ion-note slot="end">{{ recapData.count }}</ion-note>
+            </ion-item>
+            <ion-item>
+              <ion-label>Total surface signalée (m²)</ion-label>
+              <ion-note slot="end">{{ recapData.totalSurface }}</ion-note>
+            </ion-item>
+          </ion-list>
+          <ion-button expand="block" @click="loadRecapData">Actualiser</ion-button>
+        </ion-content>
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonItem, IonLabel, IonInput, IonTextarea, IonToast } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonItem, IonLabel, IonInput, IonTextarea, IonToast, IonList, IonNote } from '@ionic/vue';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
@@ -66,6 +87,8 @@ const toastMessage = ref('');
 const currentLatLng = ref<L.LatLng | null>(null);
 const isViewMode = ref(false);
 const allMarkers = ref<any[]>([]);
+const showRecapModal = ref(false);
+const recapData = ref({ count: 0, totalSurface: 0 });
 
 onMounted(async () => {
   // Vérifier l'authentification
@@ -221,6 +244,29 @@ const submitReport = async () => {
   } catch (error: any) {
     console.error('Erreur lors de l\'envoi:', error);
     toastMessage.value = `Erreur lors de l\'envoi: ${error.message || 'Connexion bloquée par le navigateur'}`;
+    showToast.value = true;
+  }
+};
+
+const openRecapModal = async () => {
+  await loadRecapData();
+  showRecapModal.value = true;
+};
+
+const loadRecapData = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'signalements'));
+    let count = 0;
+    let totalSurface = 0;
+    querySnapshot.forEach((doc: any) => {
+      const data = doc.data();
+      count++;
+      totalSurface += data.surface || 0;
+    });
+    recapData.value = { count, totalSurface };
+  } catch (error: any) {
+    console.error('Erreur lors du chargement du récapitulatif:', error);
+    toastMessage.value = 'Erreur de chargement du récapitulatif';
     showToast.value = true;
   }
 };
