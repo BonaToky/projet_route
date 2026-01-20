@@ -15,8 +15,8 @@ services:
       - db
     ports:
       - "8080:8080"
-  # carte:
-  #   build:
-  #     context: ./carte
-  #   ports:
-  #     - "3000:3000"
+  carte:
+    build:
+      context: ./carte
+    ports:
+      - "3000:3000"
