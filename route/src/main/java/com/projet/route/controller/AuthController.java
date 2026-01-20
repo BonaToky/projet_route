@@ -9,9 +9,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthenticationManager authenticationManager;
     private final UtilisateurRepository utilisateurRepository;
@@ -30,11 +36,21 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        logger.info("Login attempt for email: {}", request.getEmail());
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-            return ResponseEntity.ok("Login successful");
+            logger.info("Authentication successful for email: {}", request.getEmail());
+            Utilisateur user = utilisateurRepository.findByEmail(request.getEmail()).orElse(null);
+            if (user != null) {
+                logger.info("User found: {}", user.getEmail());
+                return ResponseEntity.ok(user);
+            } else {
+                logger.warn("User not found for email: {}", request.getEmail());
+                return ResponseEntity.status(401).body("User not found");
+            }
         } catch (Exception e) {
+            logger.error("Login failed for email: {} with error: {}", request.getEmail(), e.getMessage());
             return ResponseEntity.status(401).body("Login failed: " + e.getMessage());
         }
     }

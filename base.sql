@@ -28,6 +28,10 @@ CREATE TABLE utilisateurs (
 INSERT INTO utilisateurs (id_role, nom_utilisateur, email, mot_de_passe, source_auth)
 VALUES (2, 'admin', 'admin@gmail.com', 'admin', 'local');
 
+-- Utilisateur de test pour mobile
+INSERT INTO utilisateurs (id_role, nom_utilisateur, email, mot_de_passe, source_auth)
+VALUES (1, 'testuser', 'test@example.com', 'password', 'local');
+
 CREATE TABLE sessions (
    id SERIAL PRIMARY KEY,
    id_utilisateur INT NOT NULL,

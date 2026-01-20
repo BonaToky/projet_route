@@ -92,14 +92,13 @@ const recapData = ref({ count: 0, totalSurface: 0 });
 
 onMounted(async () => {
   // Vérifier l'authentification
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      toastMessage.value = 'Veuillez vous connecter';
-      showToast.value = true;
-      return;
-    }
-    initMapForReporting();
-  });
+  const user = localStorage.getItem('currentUser');
+  if (!user) {
+    toastMessage.value = 'Veuillez vous connecter';
+    showToast.value = true;
+    return;
+  }
+  initMapForReporting();
 });
 
 const initMapForReporting = async () => {
@@ -221,17 +220,18 @@ const submitReport = async () => {
   }
 
   try {
-    const user = auth.currentUser;
-    if (!user) {
+    const userStr = localStorage.getItem('currentUser');
+    if (!userStr) {
       toastMessage.value = 'Utilisateur non connecté';
       showToast.value = true;
       return;
     }
+    const user = JSON.parse(userStr);
 
     await addDoc(collection(db, 'signalements'), {
       latitude: currentLatLng.value.lat,
       longitude: currentLatLng.value.lng,
-      Id_User: user.uid,
+      Id_User: user.idUtilisateur, // Use user ID
       surface: parseFloat(surface.value) || 0,
       description: description.value,
       date_ajoute: new Date(),
