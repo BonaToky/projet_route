@@ -56,16 +56,27 @@ CREATE TABLE Lieux (
    description TEXT
 );
 
--- Table des signalements de routes
-CREATE TABLE Route_Signale (
-   Id_rout_signale SERIAL PRIMARY KEY,
+CREATE TABLE signalement (
+   Id_signalement SERIAL PRIMARY KEY,
+   surface DECIMAL(10,2),
    latitude DECIMAL(15,6) NOT NULL,
    longitude DECIMAL(15,6) NOT NULL,
    date_ajoute TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
    Id_Lieux INT, -- référence vers un lieu connu (optionnel)
    Id_User VARCHAR(255) NOT NULL, -- identifiant de l'utilisateur Firebase
-   type_probleme VARCHAR(50), -- ex: nid-de-poule, route inondée
+   type_probleme VARCHAR(50), -- ex: nid-de-poule, route inondée  
+   statut VARCHAR(20) DEFAULT 'non traité', -- suivi: 'non traité', 'en cours', 'résolu'
    description TEXT, -- description de l'état ou du problème
-   etat VARCHAR(20) DEFAULT 'non traité', -- suivi: 'non traité', 'en cours', 'résolu'
    FOREIGN KEY(Id_Lieux) REFERENCES Lieux(Id_Lieux)
+);
+
+ALTER TABLE signalement DROP COLUMN type_probleme;
+
+CREATE TABLE travaux (
+   id SERIAL PRIMARY KEY,
+   id_signalement INT,
+   budget DECIMAL(20,2),
+   date_debut_travaux DATE,
+   date_fin_travaux DATE,
+   avancement DECIMAL(5,2) DEFAULT 0.00 -- pourcentage d'avancement
 );

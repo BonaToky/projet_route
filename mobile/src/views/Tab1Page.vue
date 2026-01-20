@@ -57,13 +57,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonToast } from '@ionic/vue';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 // @ts-ignore
 import { auth } from '../firebase';
 import axios from 'axios';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const loginEmail = ref('');
 const loginPassword = ref('');
 const registerEmail = ref('');
@@ -71,13 +73,26 @@ const registerPassword = ref('');
 const showToast = ref(false);
 const toastMessage = ref('');
 
+onMounted(() => {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      // Utilisateur déjà connecté, rediriger vers la carte
+      router.push('/tabs/tab2');
+    }
+  });
+});
+
 const login = async () => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
     const token = await userCredential.user.getIdToken();
-    const response = await axios.post('http://localhost:8080/auth/firebase-login', { token });
+    const response = await axios.post('http://localhost:8080/api/auth/firebase-login', { token });
     toastMessage.value = response.data;
     showToast.value = true;
+    // Rediriger vers la carte après connexion réussie
+    setTimeout(() => {
+      router.push('/tabs/tab2');
+    }, 2000);
   } catch (error: any) {
     toastMessage.value = 'Erreur de connexion: ' + error.message;
     showToast.value = true;
@@ -88,9 +103,13 @@ const register = async () => {
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, registerEmail.value, registerPassword.value);
     const token = await userCredential.user.getIdToken();
-    const response = await axios.post('http://localhost:8080/auth/firebase-register', { token });
+    const response = await axios.post('http://localhost:8080/api/auth/firebase-register', { token });
     toastMessage.value = response.data;
     showToast.value = true;
+    // Rediriger vers la carte après inscription réussie
+    setTimeout(() => {
+      router.push('/tabs/tab2');
+    }, 2000);
   } catch (error: any) {
     toastMessage.value = 'Erreur d\'inscription: ' + error.message;
     showToast.value = true;

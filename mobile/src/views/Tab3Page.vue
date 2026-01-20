@@ -2,22 +2,91 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>Tab 3</ion-title>
+        <ion-title>Mes signalements</ion-title>
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
       <ion-header collapse="condense">
         <ion-toolbar>
-          <ion-title size="large">Tab 3</ion-title>
+          <ion-title size="large">Mes signalements</ion-title>
         </ion-toolbar>
       </ion-header>
 
-      <ExploreContainer name="Tab 3 page" />
+      <ion-list v-if="reports.length > 0">
+        <ion-item v-for="report in reports" :key="report.id">
+          <ion-label>
+            <h2>Nid de poule - {{ report.surface }} m²</h2>
+            <p>{{ report.description }}</p>
+            <p><small>Statut: {{ report.statut }} | Date: {{ formatDate(report.date_ajoute) }}</small></p>
+          </ion-label>
+        </ion-item>
+      </ion-list>
+
+      <ion-text v-else color="medium" class="ion-padding">
+        <p>Aucun signalement trouvé.</p>
+      </ion-text>
+
+      <ion-toast
+        :is-open="showToast"
+        :message="toastMessage"
+        :duration="2000"
+        @didDismiss="showToast = false"
+      ></ion-toast>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/vue';
-import ExploreContainer from '@/components/ExploreContainer.vue';
+import { ref, onMounted } from 'vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonList, IonItem, IonLabel, IonText, IonToast } from '@ionic/vue';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from '@/firebase';
+
+interface Report {
+  id: string;
+  description: string;
+  statut: string;
+  date_ajoute: any;
+  latitude: number;
+  longitude: number;
+  surface: number;
+}
+
+const reports = ref<Report[]>([]);
+const showToast = ref(false);
+const toastMessage = ref('');
+
+onMounted(() => {
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      await fetchReports(user.uid);
+    } else {
+      toastMessage.value = 'Veuillez vous connecter';
+      showToast.value = true;
+    }
+  });
+});
+
+const fetchReports = async (userId: string) => {
+  try {
+    const q = query(collection(db, 'signalements'), where('Id_User', '==', userId));
+    const querySnapshot = await getDocs(q);
+    reports.value = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Report));
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération:', error);
+    toastMessage.value = `Erreur: ${error.message}`;
+    showToast.value = true;
+  }
+};
+
+const formatDate = (timestamp: any) => {
+  if (timestamp && timestamp.toDate) {
+    return timestamp.toDate().toLocaleDateString('fr-FR');
+  }
+  return 'Date inconnue';
+};
 </script>
