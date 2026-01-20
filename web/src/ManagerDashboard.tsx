@@ -1,35 +1,51 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
-const ManagerDashboard = ({ onLogout }: { onLogout: () => void }) => {
-  const [activeTab, setActiveTab] = useState<'create' | 'modify'>('create');
+interface User {
+  idUtilisateur: number;
+  nomUtilisateur: string;
+  email: string;
+  role: { nom: string };
+}
 
-  const [createForm, setCreateForm] = useState({
-    nomUtilisateur: '',
-    email: '',
-    password: ''
-  });
+const ManagerDashboard = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [nomUtilisateur, setNomUtilisateur] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
 
-  const [modifyForm, setModifyForm] = useState({
-    email: '',
-    newPassword: ''
-  });
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchUsers = async () => {
     try {
-      const response = await fetch('/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(createForm),
+      const response = await fetch('/auth/users');
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const userData = { nomUtilisateur, email, password };
+    try {
+      const url = editingId ? `/auth/users/${editingId}` : '/auth/users';
+      const method = editingId ? 'PUT' : 'POST';
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
       });
       const data = await response.text();
       if (response.ok) {
-        alert('User created successfully');
-        setCreateForm({ nomUtilisateur: '', email: '', password: '' });
+        alert(data);
+        fetchUsers();
+        resetForm();
       } else {
-        alert('Failed to create user: ' + data);
+        alert('Error: ' + data);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -37,101 +53,106 @@ const ManagerDashboard = ({ onLogout }: { onLogout: () => void }) => {
     }
   };
 
-  const handleModifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // For modify, assuming there's an endpoint, but for now, just placeholder
-    alert('Modify user functionality not implemented yet');
+  const handleEdit = (user: User) => {
+    setNomUtilisateur(user.nomUtilisateur);
+    setEmail(user.email);
+    setPassword('');
+    setEditingId(user.idUtilisateur);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const response = await fetch(`/auth/users/${id}`, { method: 'DELETE' });
+      const data = await response.text();
+      if (response.ok) {
+        alert(data);
+        fetchUsers();
+      } else {
+        alert('Error: ' + data);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred');
+    }
+  };
+
+  const resetForm = () => {
+    setNomUtilisateur('');
+    setEmail('');
+    setPassword('');
+    setEditingId(null);
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '50px auto', padding: '20px' }}>
-      <h1>Tableau de Bord Manager</h1>
-      <button onClick={onLogout} style={{ float: 'right', padding: '10px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }}>
-        Déconnexion
-      </button>
-      <div style={{ clear: 'both', marginTop: '20px' }}>
-        <button onClick={() => setActiveTab('create')} style={{ marginRight: '10px', padding: '10px', backgroundColor: activeTab === 'create' ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px' }}>
-          Créer Utilisateur
-        </button>
-        <button onClick={() => setActiveTab('modify')} style={{ padding: '10px', backgroundColor: activeTab === 'modify' ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px' }}>
-          Modifier Utilisateur
-        </button>
-      </div>
-      {activeTab === 'create' && (
-        <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-          <h2>Créer un Nouvel Utilisateur</h2>
-          <form onSubmit={handleCreateSubmit}>
-            <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="nomUtilisateur" style={{ display: 'block', marginBottom: '5px' }}>Nom d'Utilisateur:</label>
-              <input
-                type="text"
-                id="nomUtilisateur"
-                value={createForm.nomUtilisateur}
-                onChange={(e) => setCreateForm({ ...createForm, nomUtilisateur: e.target.value })}
-                required
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="createEmail" style={{ display: 'block', marginBottom: '5px' }}>Email:</label>
-              <input
-                type="email"
-                id="createEmail"
-                value={createForm.email}
-                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                required
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="createPassword" style={{ display: 'block', marginBottom: '5px' }}>Mot de passe:</label>
-              <input
-                type="password"
-                id="createPassword"
-                value={createForm.password}
-                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                required
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              Créer Utilisateur
-            </button>
-          </form>
+    <div style={{ padding: '20px' }}>
+      <h1>Tableau de Bord Manager - Gestion des Utilisateurs</h1>
+      <form onSubmit={handleSubmit} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '20px' }}>
+        <h2>{editingId ? 'Modifier Utilisateur' : 'Ajouter Utilisateur'}</h2>
+        <div style={{ marginBottom: '10px' }}>
+          <label>Nom Utilisateur:</label>
+          <input
+            type="text"
+            value={nomUtilisateur}
+            onChange={(e) => setNomUtilisateur(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          />
         </div>
-      )}
-      {activeTab === 'modify' && (
-        <div style={{ marginTop: '20px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-          <h2>Modifier un Utilisateur</h2>
-          <form onSubmit={handleModifySubmit}>
-            <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="modifyEmail" style={{ display: 'block', marginBottom: '5px' }}>Email de l'utilisateur:</label>
-              <input
-                type="email"
-                id="modifyEmail"
-                value={modifyForm.email}
-                onChange={(e) => setModifyForm({ ...modifyForm, email: e.target.value })}
-                required
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div style={{ marginBottom: '15px' }}>
-              <label htmlFor="newPassword" style={{ display: 'block', marginBottom: '5px' }}>Nouveau Mot de passe:</label>
-              <input
-                type="password"
-                id="newPassword"
-                value={modifyForm.newPassword}
-                onChange={(e) => setModifyForm({ ...modifyForm, newPassword: e.target.value })}
-                required
-                style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#ffc107', color: 'black', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-              Modifier Utilisateur
-            </button>
-          </form>
+        <div style={{ marginBottom: '10px' }}>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={{ width: '100%', padding: '8px' }}
+          />
         </div>
-      )}
+        <div style={{ marginBottom: '10px' }}>
+          <label>Mot de Passe {editingId ? '(laisser vide pour ne pas changer)' : ''}:</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required={!editingId}
+            style={{ width: '100%', padding: '8px' }}
+          />
+        </div>
+        <button type="submit" style={{ padding: '10px 20px', marginRight: '10px' }}>
+          {editingId ? 'Modifier' : 'Ajouter'}
+        </button>
+        {editingId && (
+          <button type="button" onClick={resetForm} style={{ padding: '10px 20px' }}>
+            Annuler
+          </button>
+        )}
+      </form>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
+            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Nom Utilisateur</th>
+            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Email</th>
+            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Rôle</th>
+            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <tr key={user.idUtilisateur}>
+              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.idUtilisateur}</td>
+              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.nomUtilisateur}</td>
+              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.email}</td>
+              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.role.nom}</td>
+              <td style={{ border: '1px solid #ccc', padding: '8px' }}>
+                <button onClick={() => handleEdit(user)} style={{ marginRight: '10px' }}>Modifier</button>
+                <button onClick={() => handleDelete(user.id)}>Supprimer</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

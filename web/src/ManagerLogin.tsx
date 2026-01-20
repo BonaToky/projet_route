@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-const ManagerLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
+const ManagerLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,7 +20,7 @@ const ManagerLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
       if (response.ok) {
         alert('Login successful');
         console.log(data);
-        onLoginSuccess();
+        navigate('/dashboard');
       } else {
         alert('Login failed: ' + data);
       }

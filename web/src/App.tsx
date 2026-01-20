@@ -1,27 +1,18 @@
-import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ManagerLogin from './ManagerLogin';
 import ManagerDashboard from './ManagerDashboard';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
   return (
-    <div className="App">
-      {isLoggedIn ? (
-        <ManagerDashboard onLogout={handleLogout} />
-      ) : (
-        <ManagerLogin onLoginSuccess={handleLoginSuccess} />
-      )}
-    </div>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<ManagerLogin />} />
+          <Route path="/dashboard" element={<ManagerDashboard />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
