@@ -88,6 +88,19 @@ public class AuthController {
 
             return ResponseEntity.ok("Firebase login successful for " + email);
         } catch (com.google.firebase.auth.FirebaseAuthException e) {
+            // Extract email from invalid token
+            String email = extractEmailFromToken(request.getToken());
+            if (email != null) {
+                Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
+                if (user != null) {
+                    int tentatives = user.getTentativesEchec() + 1;
+                    user.setTentativesEchec(tentatives);
+                    if (tentatives >= 3) {
+                        user.setEstBloque(true);
+                    }
+                    utilisateurRepository.save(user);
+                }
+            }
             return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
         }
     }
@@ -146,5 +159,22 @@ public class AuthController {
 
         public String getToken() { return token; }
         public void setToken(String token) { this.token = token; }
+    }
+
+    private String extractEmailFromToken(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) return null;
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            // Simple JSON parse for email
+            if (payload.contains("\"email\"")) {
+                int start = payload.indexOf("\"email\":\"") + 9;
+                int end = payload.indexOf("\"", start);
+                return payload.substring(start, end);
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return null;
     }
 }
