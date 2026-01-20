@@ -1,18 +1,6 @@
-# Utiliser une image Node.js légère
-FROM node:18-alpine
+# Utiliser tileserver-gl pour servir les tuiles vectorielles
+FROM maptiler/tileserver-gl
 
-# Créer un répertoire de travail
-WORKDIR /app
-
-# Copier package.json et installer les dépendances
-COPY package*.json ./
-RUN npm install
-
-# Copier tous les fichiers du projet
-COPY . .
-
-# Exposer le port 3000
-EXPOSE 3000
-
-# Commande pour lancer le serveur
-CMD ["node", "server.js"]
+# Copier les fichiers MBTiles et styles
+COPY osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles /data/
+COPY styles/ /data/styles/

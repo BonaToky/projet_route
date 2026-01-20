@@ -42,7 +42,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonItem, IonLabel, IonInput, IonButton, IonToast } from '@ionic/vue';
-import axios from 'axios';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -61,21 +62,48 @@ onMounted(() => {
 
 const login = async () => {
   try {
-    const response = await axios.post('http://localhost:8080/api/auth/login', {
-      email: loginEmail.value,
-      password: loginPassword.value
-    });
-    // Supposons que la réponse contient les infos utilisateur
-    const user = response.data;
+    // Vérifier les credentials dans Firebase Firestore
+    const utilisateursRef = collection(db, 'utilisateurs');
+    const q = query(utilisateursRef, where('email', '==', loginEmail.value));
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      toastMessage.value = 'Email non trouvé';
+      showToast.value = true;
+      return;
+    }
+    
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+    
+    // Vérifier le mot de passe (en production, utiliser un hash)
+    if (userData.motDePasse !== loginPassword.value) {
+      toastMessage.value = 'Mot de passe incorrect';
+      showToast.value = true;
+      return;
+    }
+    
+    // Connexion réussie
+    const user = {
+      id: userDoc.id,
+      ...userData
+    };
+    
     localStorage.setItem('currentUser', JSON.stringify(user));
-    toastMessage.value = 'Connexion réussie';
-    showToast.value = true;
+    
+    // Petit délai pour s'assurer que tout est bien sauvegardé
     setTimeout(() => {
       router.push('/tabs/tab2');
-    }, 2000);
+      
+      // Afficher le message de succès après la redirection
+      setTimeout(() => {
+        toastMessage.value = 'Connexion réussie';
+        showToast.value = true;
+      }, 100);
+    }, 100);
   } catch (error: any) {
-    const errorMsg = error.response?.data?.message || error.response?.data || error.message || 'Erreur inconnue';
-    toastMessage.value = 'Erreur de connexion: ' + errorMsg;
+    console.error('Erreur de connexion:', error);
+    toastMessage.value = 'Erreur de connexion: ' + error.message;
     showToast.value = true;
   }
 };
