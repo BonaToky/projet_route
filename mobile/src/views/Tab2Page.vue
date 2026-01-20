@@ -2,11 +2,8 @@
   <ion-page>
     <ion-header>
       <ion-toolbar>
-        <ion-title>{{ isViewMode ? 'Voir les problèmes' : 'Signaler un problème' }}</ion-title>
+        <ion-title>Carte des problèmes</ion-title>
       <ion-buttons slot="end">
-          <ion-button @click="toggleMode">
-            {{ isViewMode ? 'Signaler' : 'Voir' }}
-          </ion-button>
           <ion-button @click="openRecapModal">
             Récapitulation
           </ion-button>
@@ -85,7 +82,6 @@ const surface = ref('');
 const showToast = ref(false);
 const toastMessage = ref('');
 const currentLatLng = ref<L.LatLng | null>(null);
-const isViewMode = ref(false);
 const allMarkers = ref<any[]>([]);
 const showRecapModal = ref(false);
 const recapData = ref({ count: 0, totalSurface: 0 });
@@ -98,10 +94,10 @@ onMounted(async () => {
     showToast.value = true;
     return;
   }
-  initMapForReporting();
+  initMap();
 });
 
-const initMapForReporting = async () => {
+const initMap = async () => {
   try {
     // Obtenir la position actuelle
     const position = await Geolocation.getCurrentPosition();
@@ -119,7 +115,10 @@ const initMapForReporting = async () => {
     // Ajouter un marqueur pour la position actuelle
     L.marker([lat, lng]).addTo(map).bindPopup('Votre position').openPopup();
 
-    // Événement de clic sur la carte
+    // Charger tous les signalements
+    loadAllReports();
+
+    // Événement de clic sur la carte pour signaler
     map.on('click', (e: L.LeafletMouseEvent) => {
       if (marker) {
         map!.removeLayer(marker);
@@ -137,11 +136,17 @@ const initMapForReporting = async () => {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
+    loadAllReports();
   }
 };
 
 const loadAllReports = async () => {
   if (!map) return;
+  // Clear existing markers
+  allMarkers.value.forEach(m => {
+    if (map) map.removeLayer(m);
+  });
+  allMarkers.value = [];
   try {
     const querySnapshot = await getDocs(collection(db, 'signalements'));
     querySnapshot.forEach((doc: any) => {
@@ -159,41 +164,6 @@ const loadAllReports = async () => {
     console.error('Erreur lors du chargement:', error);
     toastMessage.value = 'Erreur de chargement des signalements';
     showToast.value = true;
-  }
-};
-
-const clearAllMarkers = () => {
-  allMarkers.value.forEach(m => {
-    if (map) map.removeLayer(m);
-  });
-  allMarkers.value = [];
-};
-
-const initMapForViewing = async () => {
-  if (!map) {
-    // Init map if not already
-    try {
-      const position = await Geolocation.getCurrentPosition();
-      map = L.map('map').setView([position.coords.latitude, position.coords.longitude], 10);
-    } catch {
-      map = L.map('map').setView([48.8566, 2.3522], 10);
-    }
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-  }
-  loadAllReports();
-};
-
-const toggleMode = () => {
-  isViewMode.value = !isViewMode.value;
-  if (isViewMode.value) {
-    clearAllMarkers();
-    if (marker) map!.removeLayer(marker as L.Layer);
-    initMapForViewing();
-  } else {
-    clearAllMarkers();
-    initMapForReporting();
   }
 };
 
@@ -241,6 +211,8 @@ const submitReport = async () => {
     toastMessage.value = 'Signalement envoyé avec succès';
     showToast.value = true;
     closeModal();
+    // Recharger les signalements pour afficher le nouveau
+    loadAllReports();
   } catch (error: any) {
     console.error('Erreur lors de l\'envoi:', error);
     toastMessage.value = `Erreur lors de l\'envoi: ${error.message || 'Connexion bloquée par le navigateur'}`;
