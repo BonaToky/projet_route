@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./route
+    container_name: spring_route
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/projet_route
+      SPRING_DATASOURCE_USERNAME: toky
+      SPRING_DATASOURCE_PASSWORD: toky
+
+  frontend:
+    build:
+      context: ./frontend-react    # <-- dossier React corrigé
+    container_name: react_route
+    ports:
+      - "5173:5173"              # Port par défaut du dev server Vite
+    depends_on:
+      - backend
+    working_dir: /app
+    command: npm run dev         # Lance Vite en mode développement
+    volumes:
+      - ./frontend-react:/app    # Pour hot-reload : modifs reflétées automatiquement
+
+  postgres:
+    image: postgres:13
+    container_name: postgres_route
+    restart: always
+    environment:
+      POSTGRES_DB: projet_route
+      POSTGRES_USER: toky
+      POSTGRES_PASSWORD: toky
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
