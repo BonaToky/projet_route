@@ -56,6 +56,14 @@
               <ion-label>Total surface signalée (m²)</ion-label>
               <ion-note slot="end">{{ recapData.totalSurface }}</ion-note>
             </ion-item>
+            <ion-item>
+              <ion-label>Avancement moyen (%)</ion-label>
+              <ion-note slot="end">{{ recapData.averageAvancement }}%</ion-note>
+            </ion-item>
+            <ion-item>
+              <ion-label>Total budget (Ar)</ion-label>
+              <ion-note slot="end">{{ recapData.totalBudget.toLocaleString() }}</ion-note>
+            </ion-item>
           </ion-list>
           <ion-button expand="block" @click="loadRecapData">Actualiser</ion-button>
         </ion-content>
@@ -91,7 +99,7 @@ const toastMessage = ref('');
 const currentLatLng = ref<L.LatLng | null>(null);
 const allMarkers = ref<any[]>([]);
 const showRecapModal = ref(false);
-const recapData = ref({ count: 0, totalSurface: 0 });
+const recapData = ref({ count: 0, totalSurface: 0, averageAvancement: 0, totalBudget: 0 });
 
 onMounted(async () => {
   // Vérifier l'authentification
@@ -268,15 +276,38 @@ const openRecapModal = async () => {
 
 const loadRecapData = async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, 'signalements'));
+    // Récupérer les signalements
+    const signalementsSnapshot = await getDocs(collection(db, 'signalements'));
     let count = 0;
     let totalSurface = 0;
-    querySnapshot.forEach((doc: any) => {
+    signalementsSnapshot.forEach((doc: any) => {
       const data = doc.data();
       count++;
       totalSurface += data.surface || 0;
     });
-    recapData.value = { count, totalSurface };
+
+    // Récupérer les travaux
+    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
+    let totalBudget = 0;
+    let totalAvancement = 0;
+    let travauxCount = 0;
+    
+    travauxSnapshot.forEach((doc: any) => {
+      const data = doc.data();
+      totalBudget += data.budget || 0;
+      totalAvancement += data.avancement || 0;
+      travauxCount++;
+    });
+
+    // Calculer l'avancement moyen
+    const averageAvancement = travauxCount > 0 ? Math.round(totalAvancement / travauxCount) : 0;
+
+    recapData.value = { 
+      count, 
+      totalSurface, 
+      averageAvancement,
+      totalBudget 
+    };
   } catch (error: any) {
     console.error('Erreur lors du chargement du récapitulatif:', error);
     toastMessage.value = 'Erreur de chargement du récapitulatif';
