@@ -1,6 +1,6 @@
 <template>
   <ion-page>
-    <ion-tabs>
+    <ion-tabs :key="authKey">
       <ion-router-outlet></ion-router-outlet>
       <ion-tab-bar slot="bottom">
         <ion-tab-button tab="tab1" href="/tabs/tab1">
@@ -30,11 +30,12 @@
 <script setup lang="ts">
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
 import { ellipse, square, triangle, person, map, list, logOut } from 'ionicons/icons';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 
 const isAuthenticated = ref(false);
 const router = useRouter();
+const authKey = ref(0);
 
 onMounted(() => {
   // Vérifier l'authentification via localStorage
@@ -54,9 +55,19 @@ const logout = async () => {
     // Supprimer l'utilisateur du localStorage
     localStorage.removeItem('currentUser');
     isAuthenticated.value = false;
+    authKey.value++;
     router.push('/tabs/tab1');
   } catch (error) {
     console.error('Erreur lors de la déconnexion:', error);
   }
+};
+
+// Fonction pour forcer la mise à jour de l'état d'authentification
+const updateAuthState = async () => {
+  await nextTick();
+  const user = localStorage.getItem('currentUser');
+  isAuthenticated.value = !!user;
+  // Forcer le re-render en changeant la clé
+  authKey.value++;
 };
 </script>
