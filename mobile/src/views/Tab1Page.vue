@@ -95,10 +95,24 @@ const login = async () => {
     setTimeout(() => {
       router.push('/tabs/tab2');
       
-      // Afficher le message de succès après la redirection
+      // Forcer la mise à jour de l'état d'authentification dans TabsPage
       setTimeout(() => {
-        toastMessage.value = 'Connexion réussie';
-        showToast.value = true;
+        // Dispatch un événement personnalisé pour notifier TabsPage
+        window.dispatchEvent(new CustomEvent('authStateChanged'));
+        
+        // Dispatch aussi un événement storage pour être sûr
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'currentUser',
+          newValue: JSON.stringify(user),
+          oldValue: null,
+          storageArea: localStorage
+        }));
+        
+        // Afficher le message de succès après la redirection
+        setTimeout(() => {
+          toastMessage.value = 'Connexion réussie';
+          showToast.value = true;
+        }, 100);
       }, 100);
     }, 100);
   } catch (error: any) {
