@@ -61,6 +61,13 @@
         </ion-content>
       </ion-modal>
     </ion-content>
+
+    <ion-toast
+      :is-open="showToast"
+      :message="toastMessage"
+      :duration="2000"
+      @didDismiss="showToast = false"
+    ></ion-toast>
   </ion-page>
 </template>
 
@@ -201,6 +208,7 @@ const loadAllReports = async () => {
 };
 
 const closeModal = () => {
+  showModal.value = false;
   description.value = '';
   surface.value = '';
   if (marker && map) {

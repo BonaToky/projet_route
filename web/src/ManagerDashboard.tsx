@@ -236,33 +236,6 @@ const ManagerDashboard = () => {
     }
   };
 
-  const initializeFirebaseUsers = async () => {
-    try {
-      // Utilisateur admin
-      await addDoc(collection(db, 'utilisateurs'), {
-        nomUtilisateur: 'admin',
-        email: 'admin@gmail.com',
-        motDePasse: 'admin',
-        dateCreation: new Date(),
-        sourceAuth: 'local'
-      });
-
-      // Utilisateur de test
-      await addDoc(collection(db, 'utilisateurs'), {
-        nomUtilisateur: 'testuser',
-        email: 'test@example.com',
-        motDePasse: 'password',
-        dateCreation: new Date(),
-        sourceAuth: 'local'
-      });
-
-      alert('Utilisateurs initialisés dans Firebase');
-    } catch (error) {
-      console.error('Erreur lors de l\'initialisation:', error);
-      alert('Erreur lors de l\'initialisation des utilisateurs');
-    }
-  };
-
   const syncReports = async () => {
     try {
       // Récupérer les signalements
@@ -415,9 +388,6 @@ const ManagerDashboard = () => {
         {currentView === 'users' && (
           <div>
             <h1>Gestion des Utilisateurs</h1>
-            <button onClick={initializeFirebaseUsers} style={{ padding: '10px 20px', marginBottom: '20px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
-              Initialiser Utilisateurs Firebase
-            </button>
             <form onSubmit={handleSubmit} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '20px' }}>
               <h2>{editingId ? 'Modifier Utilisateur' : 'Ajouter Utilisateur'}</h2>
               <div style={{ marginBottom: '10px' }}>
