@@ -67,7 +67,7 @@ const ManagerDashboard = () => {
   const [editEntreprise, setEditEntreprise] = useState('');
   const [editBudget, setEditBudget] = useState('');
   const [editDateDebut, setEditDateDebut] = useState('');
-  const [editDateFin, setEditDateFin] = useState('');
+  const [editStatut, setEditStatut] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -99,76 +99,6 @@ const ManagerDashboard = () => {
     setEmail('');
     setPassword('');
     setEditingId(null);
-  };
-
-  const handleEditReport = (report: Report) => {
-    setEditingReport(report);
-    setEditSurface(report.surface.toString());
-    setEditDescription(report.description);
-    setEditAvancement(report.travaux ? report.travaux.avancement.toString() : '0');
-    setEditEntreprise(report.travaux ? report.travaux.id_entreprise.toString() : '');
-    setEditBudget(report.travaux ? report.travaux.budget.toString() : '');
-    setEditDateDebut(report.travaux ? report.travaux.date_debut_travaux.toISOString().split('T')[0] : '');
-    setEditDateFin(report.travaux ? report.travaux.date_fin_travaux.toISOString().split('T')[0] : '');
-  };
-
-  const saveReportChanges = async () => {
-    if (!editingReport) return;
-
-    try {
-      // Mettre à jour le signalement
-      const reportRef = doc(db, 'signalements', editingReport.id);
-      await updateDoc(reportRef, {
-        surface: parseFloat(editSurface),
-        description: editDescription,
-      });
-
-      // Gérer les travaux
-      if (editAvancement && editEntreprise && editBudget && editDateDebut && editDateFin) {
-        const avancementValue = parseFloat(editAvancement);
-        if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
-          alert('L\'avancement doit être un nombre entre 0 et 100');
-          return;
-        }
-
-        if (editingReport.travaux) {
-          // Mettre à jour les travaux existants
-          const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
-          await updateDoc(travauxRef, {
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
-          });
-        } else {
-          // Créer de nouveaux travaux
-          await addDoc(collection(db, 'travaux'), {
-            id_signalement: editingReport.id,
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
-          });
-        }
-      }
-
-      alert('Signalement modifié avec succès');
-      setEditingReport(null);
-      setEditSurface('');
-      setEditDescription('');
-      setEditAvancement('');
-      setEditEntreprise('');
-      setEditBudget('');
-      setEditDateDebut('');
-      setEditDateFin('');
-      // Recharger les signalements
-      syncReports();
-    } catch (error) {
-      console.error('Error updating report:', error);
-      alert('Erreur lors de la modification du signalement');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -314,34 +244,27 @@ const ManagerDashboard = () => {
     }
   };
 
-  const saveTravaux = async () => {
-    if (!selectedReport) return;
-    
-    const avancementValue = parseFloat(avancement);
-    if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
-      alert('L\'avancement doit être un nombre entre 0 et 100');
-      return;
-    }
-    
+  const handleEditReport = (report: Report) => {
+    setEditingReport(report);
+    setEditSurface(report.surface.toString());
+    setEditDescription(report.description);
+    setEditStatut(report.statut);
+  };
+
+  const saveReportChanges = async () => {
+    if (!editingReport) return;
     try {
-      await addDoc(collection(db, 'travaux'), {
-        id_signalement: selectedReport.id,
-        budget: parseFloat(budget),
-        id_entreprise: parseInt(entreprise),
-        date_debut_travaux: new Date(dateDebut),
-        date_fin_travaux: new Date(dateFin),
-        avancement: avancementValue,
+      await updateDoc(doc(db, 'signalements', editingReport.id), {
+        surface: parseFloat(editSurface),
+        description: editDescription,
+        statut: editStatut,
       });
-      alert('Travaux ajoutés avec succès');
-      setSelectedReport(null);
-      setBudget('');
-      setEntreprise('');
-      setDateDebut('');
-      setDateFin('');
-      setAvancement('');
+      alert('Signalement modifié avec succès');
+      setEditingReport(null);
+      syncReports();
     } catch (error) {
-      console.error('Error saving travaux:', error);
-      alert('Error saving travaux');
+      console.error('Error updating report:', error);
+      alert('Erreur lors de la modification');
     }
   };
 
@@ -371,7 +294,7 @@ const ManagerDashboard = () => {
                     <b>Signalement</b><br />
                     Surface: {report.surface} m²<br />
                     Description: {report.description}<br />
-                    {report.travaux ? `Avancement: ${report.travaux.avancement}%` : 'Statut: Non traité'}<br />
+                    Statut: {report.statut}<br />
                     {report.travaux && (
                       <>
                         Entreprise: {report.travaux.entreprise_nom}<br />
@@ -470,7 +393,7 @@ const ManagerDashboard = () => {
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Utilisateur</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Surface (m²)</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Description</th>
-                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Avancement</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Statut</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Entreprise</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Budget</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Date Début</th>
@@ -486,7 +409,7 @@ const ManagerDashboard = () => {
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.Id_User}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.surface}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.description}</td>
-                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.travaux ? `${report.travaux.avancement}%` : 'Non traité'}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.statut}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.travaux ? report.travaux.entreprise_nom : '-'}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.travaux ? `${report.travaux.budget} Ar` : '-'}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.travaux ? report.travaux.date_debut_travaux.toLocaleDateString() : '-'}</td>
@@ -586,57 +509,16 @@ const ManagerDashboard = () => {
                   />
                 </div>
                 <div style={{ marginBottom: '10px' }}>
-                  <label>Avancement (%):</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={editAvancement}
-                    onChange={(e) => setEditAvancement(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <label>Entreprise:</label>
+                  <label>Statut:</label>
                   <select
-                    value={editEntreprise}
-                    onChange={(e) => setEditEntreprise(e.target.value)}
+                    value={editStatut}
+                    onChange={(e) => setEditStatut(e.target.value)}
                     style={{ width: '100%', padding: '8px' }}
                   >
-                    <option value="">Sélectionner une entreprise</option>
-                    {entreprises.map((entreprise) => (
-                      <option key={entreprise.idEntreprise} value={entreprise.idEntreprise}>
-                        {entreprise.nom}
-                      </option>
-                    ))}
+                    <option value="non traité">Non traité</option>
+                    <option value="en cours">En cours</option>
+                    <option value="résolu">Résolu</option>
                   </select>
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <label>Budget (Ar):</label>
-                  <input
-                    type="number"
-                    value={editBudget}
-                    onChange={(e) => setEditBudget(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <label>Date Début Travaux:</label>
-                  <input
-                    type="date"
-                    value={editDateDebut}
-                    onChange={(e) => setEditDateDebut(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
-                </div>
-                <div style={{ marginBottom: '10px' }}>
-                  <label>Date Fin Travaux:</label>
-                  <input
-                    type="date"
-                    value={editDateFin}
-                    onChange={(e) => setEditDateFin(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
-                  />
                 </div>
                 <button onClick={saveReportChanges} style={{ padding: '10px 20px', marginRight: '10px' }}>
                   Sauvegarder
