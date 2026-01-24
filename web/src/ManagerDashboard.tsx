@@ -268,6 +268,38 @@ const ManagerDashboard = () => {
     }
   };
 
+  const saveTravaux = async () => {
+    if (!selectedReport) return;
+
+    const avancementValue = parseFloat(avancement);
+    if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
+      alert('L\'avancement doit être un nombre entre 0 et 100');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'travaux'), {
+        id_signalement: selectedReport.id,
+        budget: parseFloat(budget),
+        id_entreprise: parseInt(entreprise),
+        date_debut_travaux: new Date(dateDebut),
+        date_fin_travaux: new Date(dateFin),
+        avancement: avancementValue,
+      });
+      alert('Travaux ajoutés avec succès');
+      setSelectedReport(null);
+      setBudget('');
+      setEntreprise('');
+      setDateDebut('');
+      setDateFin('');
+      setAvancement('');
+      syncReports();
+    } catch (error) {
+      console.error('Error saving travaux:', error);
+      alert('Error saving travaux');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <nav style={{ width: '200px', background: '#f0f0f0', padding: '20px' }}>
