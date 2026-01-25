@@ -51,6 +51,7 @@ const loginEmail = ref('');
 const loginPassword = ref('');
 const showToast = ref(false);
 const toastMessage = ref('');
+const loginAttempts = ref(0);
 
 onMounted(() => {
   // Vérifier si déjà connecté
@@ -59,6 +60,31 @@ onMounted(() => {
     router.push('/tabs/tab2');
   }
 });
+
+const reportFailedLogin = async (email: string) => {
+  try {
+    // Signaler la tentative échouée au backend
+    const response = await fetch('http://localhost:8080/api/auth/report-failed-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data.blocked) {
+        toastMessage.value = 'Compte bloqué après trop de tentatives';
+        showToast.value = true;
+        return true; // Compte bloqué
+      }
+    }
+  } catch (error) {
+    console.error('Erreur lors du signalement de tentative échouée:', error);
+  }
+  return false; // Compte pas bloqué
+};
 
 const login = async () => {
   try {
@@ -70,6 +96,11 @@ const login = async () => {
     if (querySnapshot.empty) {
       toastMessage.value = 'Email non trouvé';
       showToast.value = true;
+      
+      // Signaler la tentative échouée
+      const isBlocked = await reportFailedLogin(loginEmail.value);
+      if (isBlocked) return;
+      
       return;
     }
     
@@ -80,14 +111,63 @@ const login = async () => {
     if (userData.motDePasse !== loginPassword.value) {
       toastMessage.value = 'Mot de passe incorrect';
       showToast.value = true;
+      
+      // Signaler la tentative échouée
+      const isBlocked = await reportFailedLogin(loginEmail.value);
+      if (isBlocked) return;
+      
       return;
     }
+    
+    // Vérifier si le compte est bloqué côté backend avant de permettre la connexion
+    try {
+      const checkBlockResponse = await fetch('http://localhost:8080/api/auth/check-blocked', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: loginEmail.value }),
+      });
+      
+      if (checkBlockResponse.ok) {
+        const blockData = await checkBlockResponse.json();
+        if (blockData.blocked) {
+          toastMessage.value = 'Votre compte est bloqué. Contactez un administrateur.';
+          showToast.value = true;
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du blocage:', error);
+      // En cas d'erreur, permettre la connexion pour éviter de bloquer les utilisateurs
+    }
+    
+    // Réinitialiser les tentatives en cas de succès
+    loginAttempts.value = 0;
     
     // Connexion réussie
     const user = {
       id: userDoc.id,
       ...userData
     };
+    
+    // Créer ou mettre à jour l'utilisateur dans PostgreSQL
+    try {
+      await fetch('http://localhost:8080/api/auth/mobile-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: loginEmail.value,
+          nomUtilisateur: userData.nomUtilisateur || 'Mobile User',
+          sourceAuth: 'mobile'
+        }),
+      });
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'utilisateur dans PostgreSQL:', error);
+      // Ne pas bloquer la connexion si cela échoue
+    }
     
     localStorage.setItem('currentUser', JSON.stringify(user));
     

@@ -18,6 +18,8 @@ interface User {
   nomUtilisateur: string;
   email: string;
   role: { nom: string };
+  estBloque?: boolean;
+  tentativesEchec?: number;
 }
 
 interface Report {
@@ -45,10 +47,17 @@ interface Entreprise {
   nom: string;
 }
 
+interface AuthParam {
+  cle: string;
+  valeur: string;
+  description: string;
+}
+
 const ManagerDashboard = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [entreprises, setEntreprises] = useState<Entreprise[]>([]);
+  const [authParams, setAuthParams] = useState<AuthParam[]>([]);
   const [nomUtilisateur, setNomUtilisateur] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,7 +68,7 @@ const ManagerDashboard = () => {
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
   const [avancement, setAvancement] = useState('');
-  const [currentView, setCurrentView] = useState<'map' | 'users' | 'reports'>('map');
+  const [currentView, setCurrentView] = useState<'map' | 'users' | 'reports' | 'auth'>('map');
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [editSurface, setEditSurface] = useState('');
   const [editDescription, setEditDescription] = useState('');
@@ -70,14 +79,51 @@ const ManagerDashboard = () => {
   const [editDateFin, setEditDateFin] = useState('');
   const [editStatut, setEditStatut] = useState('');
 
+  // Helper function to make authenticated API calls
+  const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (response.status === 403) {
+      // Token expired or invalid, redirect to login
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+      throw new Error('Authentication failed');
+    }
+
+    return response;
+  };
+
   useEffect(() => {
+    // Check if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      window.location.href = '/';
+      return;
+    }
+
     fetchUsers();
     fetchEntreprises();
+    fetchAuthParams();
   }, []);
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/auth/users');
+      const response = await authenticatedFetch('http://localhost:8080/api/auth/users');
       const data = await response.json();
       setUsers(data);
     } catch (error) {
@@ -87,11 +133,56 @@ const ManagerDashboard = () => {
 
   const fetchEntreprises = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/entreprises');
+      const response = await authenticatedFetch('http://localhost:8080/api/entreprises');
       const data = await response.json();
       setEntreprises(data);
     } catch (error) {
       console.error('Error fetching entreprises:', error);
+    }
+  };
+
+  const fetchAuthParams = async () => {
+    try {
+      const response = await authenticatedFetch('http://localhost:8080/api/auth/params');
+      const data = await response.json();
+      setAuthParams(data);
+    } catch (error) {
+      console.error('Error fetching auth params:', error);
+    }
+  };
+
+  const updateAuthParam = async (cle: string, valeur: string) => {
+    try {
+      const response = await authenticatedFetch(`http://localhost:8080/api/auth/params/${cle}`, {
+        method: 'PUT',
+        body: JSON.stringify({ valeur }),
+      });
+      if (response.ok) {
+        alert('Paramètre mis à jour avec succès');
+        fetchAuthParams();
+      } else {
+        alert('Erreur lors de la mise à jour');
+      }
+    } catch (error) {
+      console.error('Error updating auth param:', error);
+      alert('Erreur lors de la mise à jour');
+    }
+  };
+
+  const resetUserLock = async (userId: number) => {
+    try {
+      const response = await authenticatedFetch(`http://localhost:8080/api/auth/reset-lock/${userId}`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        alert('Blocage réinitialisé avec succès');
+        fetchUsers();
+      } else {
+        alert('Erreur lors de la réinitialisation');
+      }
+    } catch (error) {
+      console.error('Error resetting user lock:', error);
+      alert('Erreur lors de la réinitialisation');
     }
   };
 
@@ -109,7 +200,7 @@ const ManagerDashboard = () => {
       });
 
       // Récupérer les utilisateurs existants depuis PostgreSQL
-      const postgresResponse = await fetch('http://localhost:8080/api/auth/users');
+      const postgresResponse = await authenticatedFetch('http://localhost:8080/api/auth/users');
       const postgresUsers = await postgresResponse.json();
 
       // Pour chaque utilisateur Firebase, vérifier s'il existe dans PostgreSQL
@@ -119,9 +210,8 @@ const ManagerDashboard = () => {
         if (!existsInPostgres) {
           try {
             // Créer l'utilisateur dans PostgreSQL
-            const createResponse = await fetch('http://localhost:8080/api/auth/users', {
+            const createResponse = await authenticatedFetch('http://localhost:8080/api/auth/users', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 nomUtilisateur: firebaseUser.nomUtilisateur,
                 email: firebaseUser.email,
@@ -156,9 +246,8 @@ const ManagerDashboard = () => {
     try {
       const url = editingId ? `http://localhost:8080/api/auth/users/${editingId}` : 'http://localhost:8080/api/auth/users';
       const method = editingId ? 'PUT' : 'POST';
-      const response = await fetch(url, {
+      const response = await authenticatedFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
       const data = await response.text();
@@ -198,10 +287,19 @@ const ManagerDashboard = () => {
     setEditingId(user.idUtilisateur);
   };
 
+  const resetForm = () => {
+    setNomUtilisateur('');
+    setEmail('');
+    setPassword('');
+    setEditingId(null);
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/auth/users/${id}`, { method: 'DELETE' });
+      const response = await authenticatedFetch(`http://localhost:8080/api/auth/users/${id}`, { 
+        method: 'DELETE' 
+      });
       const data = await response.text();
       if (response.ok) {
         alert(data);
@@ -395,6 +493,12 @@ const ManagerDashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    window.location.href = '/';
+  };
+
   return (
     <div style={{ display: 'flex', height: '100vh' }}>
       <nav style={{ width: '200px', background: '#f0f0f0', padding: '20px' }}>
@@ -402,6 +506,8 @@ const ManagerDashboard = () => {
         <button onClick={() => setCurrentView('map')} style={{ display: 'block', marginBottom: '10px', width: '100%' }}>Carte</button>
         <button onClick={() => setCurrentView('users')} style={{ display: 'block', marginBottom: '10px', width: '100%' }}>Utilisateurs</button>
         <button onClick={() => setCurrentView('reports')} style={{ display: 'block', marginBottom: '10px', width: '100%' }}>Signalements</button>
+        <button onClick={() => setCurrentView('auth')} style={{ display: 'block', marginBottom: '10px', width: '100%' }}>Authentification</button>
+        <button onClick={handleLogout} style={{ display: 'block', marginTop: '20px', width: '100%', backgroundColor: '#f44336', color: 'white', border: 'none', padding: '10px', borderRadius: '4px' }}>Déconnexion</button>
       </nav>
       <div style={{ flex: 1, padding: '20px' }}>
         {currentView === 'map' && (
@@ -711,6 +817,84 @@ const ManagerDashboard = () => {
                 </button>
               </div>
             )}
+          </div>
+        )}
+        {currentView === 'auth' && (
+          <div>
+            <h1>Configuration Authentification</h1>
+            
+            <h2>Paramètres d'Authentification</h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Paramètre</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Valeur</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Description</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {authParams.map((param) => (
+                  <tr key={param.cle}>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{param.cle}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
+                      <input
+                        type="text"
+                        defaultValue={param.valeur}
+                        onBlur={(e) => {
+                          if (e.target.value !== param.valeur) {
+                            updateAuthParam(param.cle, e.target.value);
+                          }
+                        }}
+                        style={{ width: '100%' }}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{param.description}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
+                      <button 
+                        onClick={() => updateAuthParam(param.cle, (document.querySelector(`input[data-param="${param.cle}"]`) as HTMLInputElement)?.value || param.valeur)}
+                        style={{ padding: '5px 10px' }}
+                      >
+                        Sauvegarder
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <h2>Gestion des Utilisateurs Bloqués</h2>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Nom Utilisateur</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Email</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Bloqué</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Tentatives</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.filter(user => user.estBloque).map((user) => (
+                  <tr key={user.idUtilisateur}>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.idUtilisateur}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.nomUtilisateur}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.email}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.estBloque ? 'Oui' : 'Non'}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{user.tentativesEchec || 0}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>
+                      <button 
+                        onClick={() => resetUserLock(user.idUtilisateur)}
+                        style={{ padding: '5px 10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px' }}
+                      >
+                        Débloquer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

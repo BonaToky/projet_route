@@ -16,10 +16,13 @@ const ManagerLogin = () => {
         },
         body: JSON.stringify({ email, password }),
       });
-      const data = await response.text();
+      const data = await response.json(); // Changed from text() to json()
       if (response.ok) {
+        // Store the JWT token
+        localStorage.setItem('authToken', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         alert('Login successful');
-        console.log(data);
+        console.log('Token stored:', data.token);
         navigate('/dashboard');
       } else {
         alert('Login failed: ' + data);
