@@ -67,6 +67,7 @@ const ManagerDashboard = () => {
   const [editEntreprise, setEditEntreprise] = useState('');
   const [editBudget, setEditBudget] = useState('');
   const [editDateDebut, setEditDateDebut] = useState('');
+  const [editDateFin, setEditDateFin] = useState('');
   const [editStatut, setEditStatut] = useState('');
 
   useEffect(() => {
@@ -249,22 +250,68 @@ const ManagerDashboard = () => {
     setEditSurface(report.surface.toString());
     setEditDescription(report.description);
     setEditStatut(report.statut);
+    setEditEntreprise(report.travaux ? report.travaux.id_entreprise.toString() : '');
+    setEditBudget(report.travaux ? report.travaux.budget.toString() : '');
+    setEditDateDebut(report.travaux ? report.travaux.date_debut_travaux.toISOString().split('T')[0] : '');
+    setEditDateFin(report.travaux ? report.travaux.date_fin_travaux.toISOString().split('T')[0] : '');
   };
 
   const saveReportChanges = async () => {
     if (!editingReport) return;
+
     try {
+      // Mettre à jour le signalement
       await updateDoc(doc(db, 'signalements', editingReport.id), {
         surface: parseFloat(editSurface),
         description: editDescription,
         statut: editStatut,
       });
+
+      // Gérer les travaux si des informations sont fournies
+      if (editEntreprise && editBudget && editDateDebut && editDateFin) {
+        const avancementValue = editAvancement ? parseFloat(editAvancement) : 0;
+        if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
+          alert('L\'avancement doit être un nombre entre 0 et 100');
+          return;
+        }
+
+        if (editingReport.travaux) {
+          // Mettre à jour les travaux existants
+          const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
+          await updateDoc(travauxRef, {
+            budget: parseFloat(editBudget),
+            id_entreprise: parseInt(editEntreprise),
+            date_debut_travaux: new Date(editDateDebut),
+            date_fin_travaux: new Date(editDateFin),
+            avancement: avancementValue,
+          });
+        } else {
+          // Créer de nouveaux travaux
+          await addDoc(collection(db, 'travaux'), {
+            id_signalement: editingReport.id,
+            budget: parseFloat(editBudget),
+            id_entreprise: parseInt(editEntreprise),
+            date_debut_travaux: new Date(editDateDebut),
+            date_fin_travaux: new Date(editDateFin),
+            avancement: avancementValue,
+          });
+        }
+      }
+
       alert('Signalement modifié avec succès');
       setEditingReport(null);
+      setEditSurface('');
+      setEditDescription('');
+      setEditStatut('');
+      setEditEntreprise('');
+      setEditBudget('');
+      setEditDateDebut('');
+      setEditDateFin('');
+      setEditAvancement('');
       syncReports();
     } catch (error) {
       console.error('Error updating report:', error);
-      alert('Erreur lors de la modification');
+      alert('Erreur lors de la modification du signalement');
     }
   };
 
@@ -551,6 +598,59 @@ const ManagerDashboard = () => {
                     <option value="en cours">En cours</option>
                     <option value="résolu">Résolu</option>
                   </select>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label>Entreprise:</label>
+                  <select
+                    value={editEntreprise}
+                    onChange={(e) => setEditEntreprise(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  >
+                    <option value="">Sélectionner une entreprise</option>
+                    {entreprises.map((entreprise) => (
+                      <option key={entreprise.idEntreprise} value={entreprise.idEntreprise}>
+                        {entreprise.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label>Budget (Ar):</label>
+                  <input
+                    type="number"
+                    value={editBudget}
+                    onChange={(e) => setEditBudget(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label>Date Début Travaux:</label>
+                  <input
+                    type="date"
+                    value={editDateDebut}
+                    onChange={(e) => setEditDateDebut(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label>Date Fin Travaux:</label>
+                  <input
+                    type="date"
+                    value={editDateFin}
+                    onChange={(e) => setEditDateFin(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <label>Avancement (%):</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editAvancement}
+                    onChange={(e) => setEditAvancement(e.target.value)}
+                    style={{ width: '100%', padding: '8px' }}
+                  />
                 </div>
                 <button onClick={saveReportChanges} style={{ padding: '10px 20px', marginRight: '10px' }}>
                   Sauvegarder
