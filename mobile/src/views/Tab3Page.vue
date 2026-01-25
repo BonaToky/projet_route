@@ -15,9 +15,12 @@
       <ion-list v-if="reports.length > 0">
         <ion-item v-for="report in reports" :key="report.id">
           <ion-label>
-            <h2>Nid de poule - {{ report.surface }} m²</h2>
+            <h2>Signalement - {{ report.surface }} m²</h2>
             <p>{{ report.description }}</p>
-            <p><small>{{ report.travaux ? `Avancement: ${report.travaux.avancement}%` : 'Statut: Non traité' }} | Date: {{ formatDate(report.date_ajoute) }}</small></p>
+            <p><small>Statut: {{ report.statut }} | Date: {{ formatDate(report.date_ajoute) }}</small></p>
+            <p v-if="report.travaux" style="color: #28a745;">
+              <small>🏗️ Travaux en cours - Avancement: {{ report.travaux.avancement }}%</small>
+            </p>
           </ion-label>
         </ion-item>
       </ion-list>
@@ -51,6 +54,15 @@ interface Report {
   latitude: number;
   longitude: number;
   surface: number;
+  travaux?: {
+    id: string;
+    id_entreprise: number;
+    budget: number;
+    entreprise_nom?: string;
+    date_debut_travaux: Date;
+    date_fin_travaux: Date;
+    avancement: number;
+  };
 }
 
 const reports = ref<Report[]>([]);
@@ -66,17 +78,44 @@ onMounted(() => {
     return;
   }
   const user = JSON.parse(userStr);
-  fetchReports(user.email);
+  fetchReports(user.id); // Utiliser l'ID Firebase au lieu de l'email
 });
 
-const fetchReports = async (userEmail: string) => {
+const fetchReports = async (userId: string) => {
   try {
-    const q = query(collection(db, 'signalements'), where('Id_User', '==', userEmail));
-    const querySnapshot = await getDocs(q);
-    reports.value = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Report));
+    // Récupérer les signalements de l'utilisateur
+    const q = query(collection(db, 'signalements'), where('Id_User', '==', userId));
+    const signalementsSnapshot = await getDocs(q);
+    const signalements: any[] = [];
+    signalementsSnapshot.forEach((doc: any) => {
+      const data = doc.data();
+      signalements.push({
+        id: doc.id,
+        ...data
+      });
+    });
+
+    // Récupérer les travaux
+    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
+    const travaux: any[] = [];
+    travauxSnapshot.forEach((doc: any) => {
+      const data = doc.data();
+      travaux.push(data);
+    });
+
+    // Associer les travaux aux signalements
+    const reportsWithTravaux = signalements.map((signalement) => {
+      const travauxAssocie = travaux.find(t => t.id_signalement === signalement.id);
+      if (travauxAssocie) {
+        return {
+          ...signalement,
+          travaux: travauxAssocie
+        };
+      }
+      return signalement;
+    });
+
+    reports.value = reportsWithTravaux;
   } catch (error: any) {
     console.error('Erreur lors de la récupération:', error);
     toastMessage.value = `Erreur: ${error.message}`;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const ManagerLogin = () => {
   const [email, setEmail] = useState('');
@@ -60,6 +60,11 @@ const ManagerLogin = () => {
           Se connecter
         </button>
       </form>
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        <Link to="/visiteur" style={{ color: '#28a745', textDecoration: 'none', fontSize: '16px' }}>
+          👁️ Accès Visiteur - Voir la carte publique
+        </Link>
+      </div>
     </div>
   );
 };
