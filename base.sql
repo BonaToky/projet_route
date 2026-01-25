@@ -86,7 +86,7 @@ CREATE TABLE signalement (
 );
 
 ALTER TABLE signalement DROP COLUMN type_probleme;
-ALTER TABLE signalement DROP COLUMN statut;
+-- ALTER TABLE signalement DROP COLUMN statut; -- Garder la colonne statut
 
 CREATE TABLE travaux (
    id SERIAL PRIMARY KEY,

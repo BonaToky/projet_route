@@ -192,7 +192,7 @@ const loadAllReports = async () => {
         <b>Signalement</b><br>
         Surface: ${signalement.surface} m²<br>
         Description: ${signalement.description}<br>
-        ${travauxAssocie ? `Avancement: ${travauxAssocie.avancement}%` : 'Statut: Non traité'}<br>
+        Statut: ${signalement.statut || 'Non traité'}<br>
         Date: ${signalement.date_ajoute.toDate().toLocaleDateString('fr-FR')}
       `;
       
