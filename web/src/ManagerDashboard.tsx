@@ -95,11 +95,59 @@ const ManagerDashboard = () => {
     }
   };
 
-  const resetForm = () => {
-    setNomUtilisateur('');
-    setEmail('');
-    setPassword('');
-    setEditingId(null);
+  const syncUsersFromFirebase = async () => {
+    try {
+      // Récupérer les utilisateurs depuis Firebase
+      const firebaseUsersSnapshot = await getDocs(collection(db, 'utilisateurs'));
+      const firebaseUsers: any[] = [];
+      firebaseUsersSnapshot.forEach((doc) => {
+        const data = doc.data();
+        firebaseUsers.push({
+          id: doc.id,
+          ...data
+        });
+      });
+
+      // Récupérer les utilisateurs existants depuis PostgreSQL
+      const postgresResponse = await fetch('http://localhost:8080/api/auth/users');
+      const postgresUsers = await postgresResponse.json();
+
+      // Pour chaque utilisateur Firebase, vérifier s'il existe dans PostgreSQL
+      for (const firebaseUser of firebaseUsers) {
+        const existsInPostgres = postgresUsers.some((pgUser: any) => pgUser.email === firebaseUser.email);
+
+        if (!existsInPostgres) {
+          try {
+            // Créer l'utilisateur dans PostgreSQL
+            const createResponse = await fetch('http://localhost:8080/api/auth/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                nomUtilisateur: firebaseUser.nomUtilisateur,
+                email: firebaseUser.email,
+                password: firebaseUser.motDePasse || 'defaultPassword123', // Mot de passe par défaut si non défini
+              }),
+            });
+
+            if (createResponse.ok) {
+              console.log(`Utilisateur ${firebaseUser.email} synchronisé depuis Firebase`);
+            } else {
+              const errorText = await createResponse.text();
+              console.error(`Erreur lors de la synchronisation de ${firebaseUser.email}: ${errorText}`);
+            }
+          } catch (error) {
+            console.error(`Erreur lors du traitement de ${firebaseUser.email}:`, error);
+          }
+        }
+      }
+
+      // Rafraîchir la liste des utilisateurs
+      await fetchUsers();
+      alert('Synchronisation terminée !');
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      alert('Erreur lors de la synchronisation des utilisateurs');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -390,6 +438,9 @@ const ManagerDashboard = () => {
         {currentView === 'users' && (
           <div>
             <h1>Gestion des Utilisateurs</h1>
+            <button onClick={syncUsersFromFirebase} style={{ padding: '10px 20px', marginBottom: '20px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+              🔄 Synchroniser les Utilisateurs
+            </button>
             <form onSubmit={handleSubmit} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '20px' }}>
               <h2>{editingId ? 'Modifier Utilisateur' : 'Ajouter Utilisateur'}</h2>
               <div style={{ marginBottom: '10px' }}>
