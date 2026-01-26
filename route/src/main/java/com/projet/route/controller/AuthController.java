@@ -57,112 +57,112 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already exists");
-        }
-        Role role = roleRepository.findByNom("UTILISATEUR");
-        if (role == null) {
-            return ResponseEntity.badRequest().body("Role not found");
-        }
-        Utilisateur user = new Utilisateur();
-        user.setNomUtilisateur(request.getNomUtilisateur());
-        user.setEmail(request.getEmail());
-        user.setMotDePasse(request.getPassword());
-        user.setRole(role);
-        utilisateurRepository.save(user);
-        return ResponseEntity.ok("User registered successfully");
-    }
+    // @PostMapping("/register")
+    // public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    //     if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
+    //         return ResponseEntity.badRequest().body("Email already exists");
+    //     }
+    //     Role role = roleRepository.findByNom("UTILISATEUR");
+    //     if (role == null) {
+    //         return ResponseEntity.badRequest().body("Role not found");
+    //     }
+    //     Utilisateur user = new Utilisateur();
+    //     user.setNomUtilisateur(request.getNomUtilisateur());
+    //     user.setEmail(request.getEmail());
+    //     user.setMotDePasse(request.getPassword());
+    //     user.setRole(role);
+    //     utilisateurRepository.save(user);
+    //     return ResponseEntity.ok("User registered successfully");
+    // }
 
-    @PostMapping("/firebase-login")
-    public ResponseEntity<?> firebaseLogin(@RequestBody FirebaseLoginRequest request) {
-        try {
-            com.google.firebase.auth.FirebaseToken decodedToken = com.google.firebase.auth.FirebaseAuth.getInstance().verifyIdToken(request.getToken());
-            String uid = decodedToken.getUid();
-            String email = decodedToken.getEmail();
+    // @PostMapping("/firebase-login")
+    // public ResponseEntity<?> firebaseLogin(@RequestBody FirebaseLoginRequest request) {
+    //     try {
+    //         com.google.firebase.auth.FirebaseToken decodedToken = com.google.firebase.auth.FirebaseAuth.getInstance().verifyIdToken(request.getToken());
+    //         String uid = decodedToken.getUid();
+    //         String email = decodedToken.getEmail();
 
-            // Chercher l'utilisateur local
-            Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
-            if (user != null && user.getEstBloque()) {
-                return ResponseEntity.status(403).body("Account blocked due to too many failed attempts");
-            }
+    //         // Chercher l'utilisateur local
+    //         Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
+    //         if (user != null && user.getEstBloque()) {
+    //             return ResponseEntity.status(403).body("Account blocked due to too many failed attempts");
+    //         }
 
-            // Créer si inexistant
-            if (user == null) {
-                Role role = roleRepository.findByNom("UTILISATEUR");
-                user = new Utilisateur();
-                user.setNomUtilisateur(decodedToken.getName() != null ? decodedToken.getName() : uid);
-                user.setEmail(email);
-                user.setMotDePasse("firebase");
-                user.setRole(role);
-                user.setSourceAuth("firebase");
-                utilisateurRepository.save(user);
-            } else {
-                // Reset tentatives on success
-                user.setTentativesEchec(0);
-                utilisateurRepository.save(user);
-            }
+    //         // Créer si inexistant
+    //         if (user == null) {
+    //             Role role = roleRepository.findByNom("UTILISATEUR");
+    //             user = new Utilisateur();
+    //             user.setNomUtilisateur(decodedToken.getName() != null ? decodedToken.getName() : uid);
+    //             user.setEmail(email);
+    //             user.setMotDePasse("firebase");
+    //             user.setRole(role);
+    //             user.setSourceAuth("firebase");
+    //             utilisateurRepository.save(user);
+    //         } else {
+    //             // Reset tentatives on success
+    //             user.setTentativesEchec(0);
+    //             utilisateurRepository.save(user);
+    //         }
 
-            return ResponseEntity.ok("Firebase login successful for " + email);
-        } catch (com.google.firebase.auth.FirebaseAuthException e) {
-            // Extract email from invalid token
-            String email = extractEmailFromToken(request.getToken());
-            if (email != null) {
-                Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
-                if (user != null) {
-                    int tentatives = user.getTentativesEchec() + 1;
-                    user.setTentativesEchec(tentatives);
-                    if (tentatives >= 3) {
-                        user.setEstBloque(true);
-                    }
-                    utilisateurRepository.save(user);
-                }
-            }
-            return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
-        }
-    }
+    //         return ResponseEntity.ok("Firebase login successful for " + email);
+    //     } catch (com.google.firebase.auth.FirebaseAuthException e) {
+    //         // Extract email from invalid token
+    //         String email = extractEmailFromToken(request.getToken());
+    //         if (email != null) {
+    //             Utilisateur user = utilisateurRepository.findByEmail(email).orElse(null);
+    //             if (user != null) {
+    //                 int tentatives = user.getTentativesEchec() + 1;
+    //                 user.setTentativesEchec(tentatives);
+    //                 if (tentatives >= 3) {
+    //                     user.setEstBloque(true);
+    //                 }
+    //                 utilisateurRepository.save(user);
+    //             }
+    //         }
+    //         return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
+    //     }
+    // }
 
-    @PostMapping("/firebase-register")
-    public ResponseEntity<?> firebaseRegister(@RequestBody FirebaseLoginRequest request) {
-        try {
-            com.google.firebase.auth.FirebaseToken decodedToken = com.google.firebase.auth.FirebaseAuth.getInstance().verifyIdToken(request.getToken());
-            String uid = decodedToken.getUid();
-            String email = decodedToken.getEmail();
+    // @PostMapping("/firebase-register")
+    // public ResponseEntity<?> firebaseRegister(@RequestBody FirebaseLoginRequest request) {
+    //     try {
+    //         com.google.firebase.auth.FirebaseToken decodedToken = com.google.firebase.auth.FirebaseAuth.getInstance().verifyIdToken(request.getToken());
+    //         String uid = decodedToken.getUid();
+    //         String email = decodedToken.getEmail();
 
-            if (utilisateurRepository.findByEmail(email).isPresent()) {
-                return ResponseEntity.badRequest().body("User already exists");
-            }
+    //         if (utilisateurRepository.findByEmail(email).isPresent()) {
+    //             return ResponseEntity.badRequest().body("User already exists");
+    //         }
 
-            Role role = roleRepository.findByNom("UTILISATEUR");
-            Utilisateur user = new Utilisateur();
-            user.setNomUtilisateur(decodedToken.getName() != null ? decodedToken.getName() : uid);
-            user.setEmail(email);
-            user.setMotDePasse("firebase");
-            user.setRole(role);
-            user.setSourceAuth("firebase");
-            utilisateurRepository.save(user);
+    //         Role role = roleRepository.findByNom("UTILISATEUR");
+    //         Utilisateur user = new Utilisateur();
+    //         user.setNomUtilisateur(decodedToken.getName() != null ? decodedToken.getName() : uid);
+    //         user.setEmail(email);
+    //         user.setMotDePasse("firebase");
+    //         user.setRole(role);
+    //         user.setSourceAuth("firebase");
+    //         utilisateurRepository.save(user);
 
-            return ResponseEntity.ok("Firebase register successful for " + email);
-        } catch (com.google.firebase.auth.FirebaseAuthException e) {
-            return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
-        }
-    }
+    //         return ResponseEntity.ok("Firebase register successful for " + email);
+    //     } catch (com.google.firebase.auth.FirebaseAuthException e) {
+    //         return ResponseEntity.status(401).body("Invalid Firebase token: " + e.getMessage());
+    //     }
+    // }
 
-    @PostMapping("/users")
-    public ResponseEntity<?> createUser(@RequestBody RegisterRequest request) {
-        if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already exists");
-        }
-        Role role = roleRepository.findByNom("UTILISATEUR");
-        Utilisateur user = new Utilisateur();
-        user.setNomUtilisateur(request.getNomUtilisateur());
-        user.setEmail(request.getEmail());
-        user.setMotDePasse(request.getPassword());
-        user.setRole(role);
-        utilisateurRepository.save(user);
-        return ResponseEntity.ok("User created successfully");
-    }
+    // @PostMapping("/users")
+    // public ResponseEntity<?> createUser(@RequestBody RegisterRequest request) {
+    //     if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
+    //         return ResponseEntity.badRequest().body("Email already exists");
+    //     }
+    //     Role role = roleRepository.findByNom("UTILISATEUR");
+    //     Utilisateur user = new Utilisateur();
+    //     user.setNomUtilisateur(request.getNomUtilisateur());
+    //     user.setEmail(request.getEmail());
+    //     user.setMotDePasse(request.getPassword());
+    //     user.setRole(role);
+    //     utilisateurRepository.save(user);
+    //     return ResponseEntity.ok("User created successfully");
+    // }
 
     @PutMapping("/users/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UpdateUserRequest request) {
