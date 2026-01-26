@@ -16,6 +16,7 @@ import com.projet.route.service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -33,18 +34,15 @@ public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    private final AuthenticationManager authenticationManager;
     private final UtilisateurRepository utilisateurRepository;
     private final RoleRepository roleRepository;
     private final AuthService authService;
     private final ParametreAuthRepository parametreAuthRepository;
 
-    public AuthController(AuthenticationManager authenticationManager,
-                         UtilisateurRepository utilisateurRepository,
+    public AuthController(UtilisateurRepository utilisateurRepository,
                          RoleRepository roleRepository,
                          AuthService authService,
                          ParametreAuthRepository parametreAuthRepository) {
-        this.authenticationManager = authenticationManager;
         this.utilisateurRepository = utilisateurRepository;
         this.roleRepository = roleRepository;
         this.authService = authService;
@@ -75,8 +73,14 @@ public class AuthController {
         }
 
         try {
-            authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            // Vérifier le mot de passe manuellement (puisque nous utilisons NoOpPasswordEncoder)
+            if (!request.getPassword().equals(user.getMotDePasse())) {
+                logger.warn("Invalid password for email: {}", request.getEmail());
+                // Enregistrer la tentative échouée
+                authService.recordFailedLoginAttempt(user);
+                return ResponseEntity.status(401).body("Invalid credentials");
+            }
+
             logger.info("Authentication successful for email: {}", request.getEmail());
 
             // Réinitialiser les tentatives échouées
@@ -241,12 +245,14 @@ public class AuthController {
 
     @PostMapping("/mobile-login")
     public ResponseEntity<?> mobileLogin(@RequestBody MobileLoginRequest request) {
+        logger.info("Mobile login request received for email: {}", request.getEmail());
         try {
             Optional<Utilisateur> userOpt = utilisateurRepository.findByEmail(request.getEmail());
             Utilisateur user;
             
             if (userOpt.isEmpty()) {
                 // Créer l'utilisateur s'il n'existe pas
+                logger.info("Creating new mobile user: {}", request.getEmail());
                 Role role = roleRepository.findByNom("UTILISATEUR");
                 user = new Utilisateur();
                 user.setNomUtilisateur(request.getNomUtilisateur());
@@ -275,13 +281,20 @@ public class AuthController {
         }
     }
 
+    @GetMapping("/test")
+    public ResponseEntity<?> test() {
+        return ResponseEntity.ok("Test endpoint works");
+    }
+
     @PostMapping("/check-blocked")
     public ResponseEntity<?> checkAccountBlocked(@RequestBody FailedLoginRequest request) {
+        logger.info("Check blocked request received for email: {}", request.getEmail());
         try {
             Optional<Utilisateur> userOpt = utilisateurRepository.findByEmail(request.getEmail());
             
             if (userOpt.isEmpty()) {
                 // Si l'utilisateur n'existe pas encore, il n'est pas bloqué
+                logger.info("User {} not found in database, returning not blocked", request.getEmail());
                 Map<String, Object> response = new HashMap<>();
                 response.put("blocked", false);
                 return ResponseEntity.ok(response);
@@ -289,6 +302,7 @@ public class AuthController {
             
             Utilisateur user = userOpt.get();
             boolean isBlocked = authService.isAccountLocked(user);
+            logger.info("User {} blocked status: {}", request.getEmail(), isBlocked);
             
             Map<String, Object> response = new HashMap<>();
             response.put("blocked", isBlocked);
