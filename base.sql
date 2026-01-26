@@ -85,8 +85,8 @@ CREATE TABLE signalement (
    FOREIGN KEY(Id_Lieux) REFERENCES Lieux(Id_Lieux)
 );
 
-ALTER TABLE signalement DROP COLUMN type_probleme;
-ALTER TABLE signalement DROP COLUMN statut;
+-- ALTER TABLE signalement DROP COLUMN type_probleme;
+-- ALTER TABLE signalement DROP COLUMN statut;
 
 CREATE TABLE travaux (
    id SERIAL PRIMARY KEY,
@@ -102,3 +102,20 @@ CREATE TABLE travaux (
 
 -- Supprimer la colonne statut si elle existe (migration)
 ALTER TABLE travaux DROP COLUMN IF EXISTS statut;
+
+
+
+INSERT INTO signalement (surface, latitude, longitude, Id_Lieux, Id_User, type_probleme, statut, description) VALUES
+-- Rue principale vers le stade (Avenue de l'Indépendance)
+(12.50, -18.909845, 47.528123, NULL, 'user_firebase_001', 'nid de poule', 'non traité', 'Grand trou sur la voie droite en direction du stade'),
+(8.20, -18.910245, 47.529012, NULL, 'user_firebase_002', 'fissure', 'en cours', 'Fissure longitudinale de 5m sur la chaussée'),
+(25.00, -18.911123, 47.526789, NULL, 'user_firebase_003', 'inondation', 'non traité', 'Bourg couvert d eau après la pluie, difficile pour les voitures');
+
+
+INSERT INTO Lieux (libelle, ville, description) VALUES
+-- Antananarivo
+('Avenue de l''Indépendance', 'Antananarivo', 'Artère principale de la capitale, centre commercial et historique'),
+('Analakely', 'Antananarivo', 'Place centrale du marché et centre-ville'),
+('Ampefiloha', 'Antananarivo', 'Quartier des affaires et administratif'),
+('Andravoahangy', 'Antananarivo', 'Grand marché artisanal et populaire'),
+('Ivato', 'Antananarivo', 'Zone aéroportuaire et industrielle');

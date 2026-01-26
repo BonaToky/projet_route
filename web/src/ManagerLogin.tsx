@@ -20,7 +20,7 @@ const ManagerLogin = () => {
       if (response.ok) {
         alert('Login successful');
         console.log(data);
-        navigate('/dashboard');
+        navigate('/map');
       } else {
         alert('Login failed: ' + data);
       }

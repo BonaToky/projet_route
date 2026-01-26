@@ -1,6 +1,16 @@
-# Utiliser tileserver-gl pour servir les tuiles vectorielles
-FROM maptiler/tileserver-gl
+FROM maptiler/tileserver-gl:v5.5.0
 
-# Copier les fichiers MBTiles et styles
-COPY osm-2020-02-10-v3.11_madagascar_antananarivo.mbtiles /data/
+# Copie la config
+COPY config.json /data/config.json
+
+# Copie les données (si tu veux les inclure dans l'image)
+COPY data/ /data/
+
+# Copie les styles
 COPY styles/ /data/styles/
+
+# Copie les fonts (même vide)
+COPY fonts/ /data/fonts/
+
+EXPOSE 8080
+CMD ["--config", "/data/config.json", "--verbose"]

@@ -3,6 +3,7 @@ import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from './firebase';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import MapComponent from './MapComponent';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';

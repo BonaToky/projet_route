@@ -1,12 +1,13 @@
 {
   "version": 8,
   "name": "bright",
+  "metadata": {
+    "maputnik:renderer": "mlgljs"
+  },
   "sources": {
     "antananarivo": {
       "type": "vector",
-      "tiles": [
-        "http://localhost:8080/data/antananarivo/{z}/{x}/{y}.pbf"
-      ]
+      "url": "http://localhost:3000/data/v3.json"
     }
   },
   "layers": [
@@ -14,7 +15,17 @@
       "id": "background",
       "type": "background",
       "paint": {
-        "background-color": "#eeeeee"
+        "background-color": "#f8f4f0"
+      }
+    },
+    {
+      "id": "osm_transportation",
+      "type": "line",
+      "source": "antananarivo",
+      "source-layer": "transportation",
+      "paint": {
+        "line-color": "#333333",
+        "line-width": 1
       }
     }
   ]

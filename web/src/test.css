@@ -1,0 +1,391 @@
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '40px 20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '16px',
+        padding: '40px',
+        maxWidth: '600px',
+        width: '100%',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <h1 style={{ 
+            margin: '0 0 10px 0', 
+            color: '#667eea', 
+            fontSize: '32px',
+            fontWeight: '700'
+          }}>
+            🚧 Nouveau Signalement
+          </h1>
+          <p style={{ 
+            margin: 0, 
+            color: '#666', 
+            fontSize: '16px' 
+          }}>
+            Signalez un problème sur la route
+          </p>
+        </div>
+
+        {success && (
+          <div style={{
+            padding: '15px',
+            background: '#d4edda',
+            border: '2px solid #28a745',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center',
+            color: '#155724',
+            fontWeight: '600'
+          }}>
+            ✅ Signalement créé avec succès !
+          </div>
+        )}
+
+        {error && (
+          <div style={{
+            padding: '15px',
+            background: '#f8d7da',
+            border: '2px solid #dc3545',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            textAlign: 'center',
+            color: '#721c24',
+            fontWeight: '600'
+          }}>
+            ❌ {error}
+          </div>
+        )}
+
+        <div>
+          <div style={{
+            background: '#f8f9fa',
+            padding: '20px',
+            borderRadius: '10px',
+            marginBottom: '25px',
+            border: '2px solid #e9ecef'
+          }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#495057', fontSize: '16px' }}>
+              📍 Coordonnées GPS
+            </h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600', 
+                  color: '#495057',
+                  fontSize: '14px'
+                }}>
+                  Latitude
+                </label>
+                <input
+                  type="text"
+                  value={formData.latitude || ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const normalized = raw.replace(/,/g, '.');
+                    const num = parseFloat(normalized);
+                    setFormData({ ...formData, latitude: isNaN(num) ? 0 : num });
+                  }}
+                  placeholder="-19.123456"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '2px solid #dee2e6',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#495057'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600', 
+                  color: '#495057',
+                  fontSize: '14px'
+                }}>
+                  Longitude
+                </label>
+                <input
+                  type="text"
+                  value={formData.longitude || ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const normalized = raw.replace(/,/g, '.');
+                    const num = parseFloat(normalized);
+                    setFormData({ ...formData, longitude: isNaN(num) ? 0 : num });
+                  }}
+                  placeholder="47.456789"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: '2px solid #dee2e6',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#495057'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057',
+              fontSize: '14px'
+            }}>
+              🔧 Type de problème *
+            </label>
+            <select
+              value={formData.typeProbleme}
+              onChange={(e) => setFormData({ ...formData, typeProbleme: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '2px solid #667eea',
+                fontSize: '15px',
+                fontWeight: '500',
+                color: '#495057',
+                cursor: 'pointer',
+                background: 'white'
+              }}
+            >
+              <option value="nid de poule">🕳️ Nid de poule</option>
+              <option value="fissure">⚡ Fissure</option>
+              <option value="inondation">💧 Inondation</option>
+              <option value="affaissement">📉 Affaissement</option>
+              <option value="obstacle">🚧 Obstacle</option>
+              <option value="autre">❓ Autre</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057',
+              fontSize: '14px'
+            }}>
+              📏 Surface estimée (m²)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.surface || ''}
+              onChange={(e) => setFormData({ 
+                ...formData, 
+                surface: e.target.value ? parseFloat(e.target.value) : undefined 
+              })}
+              placeholder="Ex: 12.5"
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '2px solid #dee2e6',
+                fontSize: '15px',
+                color: '#495057'
+              }}
+            />
+          </div>
+
+          {/* NOUVEAU : Liste déroulante des lieux */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057',
+              fontSize: '14px'
+            }}>
+              📌 Lieu (optionnel)
+            </label>
+            <select
+              value={formData.idLieux || ''}
+              onChange={(e) => setFormData({ 
+                ...formData, 
+                idLieux: e.target.value ? parseInt(e.target.value) : undefined 
+              })}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '2px solid #dee2e6',
+                fontSize: '15px',
+                color: '#495057',
+                background: 'white'
+              }}
+            >
+              <option value="">Sélectionner un lieu (optionnel)</option>
+              {lieux.map((lieu) => (
+                <option key={lieu.id} value={lieu.id}>
+                  {lieu.nom} (ID: {lieu.id})
+                </option>
+              ))}
+            </select>
+            <div style={{ 
+              marginTop: '5px', 
+              fontSize: '12px', 
+              color: '#6c757d' 
+            }}>
+              Liste chargée depuis l'API /api/lieux
+            </div>
+          </div>
+
+          {/* Champ ID USER (inchangé) */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057',
+              fontSize: '14px'
+            }}>
+              👤 Identifiant utilisateur *
+            </label>
+            <input
+              type="text"
+              value={formData.idUser}
+              onChange={(e) => setFormData({ ...formData, idUser: e.target.value.trim() })}
+              placeholder="Ex: user_firebase_001, uid_abc123..."
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: formData.idUser ? '2px solid #dee2e6' : '2px solid #dc3545',
+                fontSize: '15px',
+                color: '#495057',
+                background: formData.idUser ? 'white' : '#fff5f5'
+              }}
+            />
+            {!formData.idUser && (
+              <div style={{ 
+                marginTop: '5px', 
+                fontSize: '12px', 
+                color: '#dc3545' 
+              }}>
+                L'identifiant utilisateur est requis
+              </div>
+            )}
+          </div>
+
+          <div style={{ marginBottom: '25px' }}>
+            <label style={{ 
+              display: 'block', 
+              marginBottom: '8px', 
+              fontWeight: '600', 
+              color: '#495057',
+              fontSize: '14px'
+            }}>
+              📝 Description du problème *
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={5}
+              placeholder="Décrivez le problème en détail : localisation précise, gravité, dangers potentiels..."
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '2px solid #667eea',
+                fontSize: '15px',
+                fontFamily: 'Arial, sans-serif',
+                resize: 'vertical',
+                color: '#495057',
+                lineHeight: '1.6'
+              }}
+            />
+            <div style={{ 
+              marginTop: '5px', 
+              fontSize: '12px', 
+              color: '#6c757d' 
+            }}>
+              Minimum 10 caractères ({formData.description.length}/10)
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || formData.description.length < 10 || !formData.idUser.trim()}
+              style={{
+                flex: 1,
+                padding: '15px',
+                background: submitting || formData.description.length < 10 || !formData.idUser.trim()
+                  ? '#ccc' 
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: submitting || formData.description.length < 10 || !formData.idUser.trim() ? 'not-allowed' : 'pointer',
+                boxShadow: submitting || formData.description.length < 10 || !formData.idUser.trim()
+                  ? 'none' 
+                  : '0 4px 15px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {submitting ? '⏳ Envoi en cours...' : '✅ Créer le signalement'}
+            </button>
+            
+            <button
+              onClick={handleReset}
+              disabled={submitting}
+              style={{
+                padding: '15px 25px',
+                background: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '700',
+                cursor: submitting ? 'not-allowed' : 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              🔄 Réinitialiser
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: '25px',
+          padding: '12px',
+          background: '#e7f3ff',
+          borderRadius: '8px',
+          fontSize: '13px',
+          color: '#004085',
+          border: '1px solid #b8daff'
+        }}>
+          <div style={{ fontWeight: '600', marginBottom: '5px' }}>
+            ℹ️ Information
+          </div>
+          <div>
+            Signalement envoyé par : <strong>{formData.idUser || '(non renseigné)'}</strong>
+          </div>
+          <div style={{ fontSize: '11px', marginTop: '5px', color: '#6c757d' }}>
+            Les champs marqués d'un * sont obligatoires
+          </div>
+        </div>
+      </div>
+    </div>

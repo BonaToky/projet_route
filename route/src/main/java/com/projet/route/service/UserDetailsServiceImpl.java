@@ -30,7 +30,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.builder()
             .username(user.getEmail())
             .password(user.getMotDePasse())  // Plain text
-            .roles(user.getRole() != null ? user.getRole().getNom() : "USER")
+            // .roles(user.getRole() != null ? user.getRole().getNom() : "USER")
             .disabled(user.getEstBloque())
             .build();
     }
