@@ -57,7 +57,24 @@ onMounted(() => {
   // Vérifier si déjà connecté
   const user = localStorage.getItem('currentUser');
   if (user) {
-    router.push('/tabs/tab2');
+    const userData = JSON.parse(user);
+    console.log('Utilisateur trouvé dans localStorage:', userData);
+    console.log('Expiration de session:', new Date(userData.sessionExpiration));
+    console.log('Maintenant:', new Date(Date.now()));
+    
+    // Vérifier si la session n'est pas expirée
+    if (userData.sessionExpiration && Date.now() > userData.sessionExpiration) {
+      console.log('Session expirée au démarrage, déconnexion');
+      // Session expirée, déconnecter
+      logout();
+    } else {
+      console.log('Session valide au démarrage, démarrage vérification périodique');
+      // Démarrer la vérification périodique
+      startSessionCheck();
+      router.push('/tabs/tab2');
+    }
+  } else {
+    console.log('Aucun utilisateur connecté');
   }
 });
 
@@ -145,11 +162,34 @@ const login = async () => {
     // Réinitialiser les tentatives en cas de succès
     loginAttempts.value = 0;
     
+    // Récupérer la durée de vie de session depuis le backend
+    let sessionDurationMinutes = 60; // Valeur par défaut : 1 heure
+    try {
+      const paramsResponse = await fetch('http://localhost:8080/api/auth/params');
+      if (paramsResponse.ok) {
+        const params = await paramsResponse.json();
+        const sessionParam = params.find((p: any) => p.cle === 'duree_session_minutes');
+        if (sessionParam) {
+          sessionDurationMinutes = parseInt(sessionParam.valeur) || 60;
+        }
+      }
+      console.log('Durée de session récupérée:', sessionDurationMinutes, 'minutes');
+    } catch (error) {
+      console.error('Erreur lors de la récupération des paramètres de session:', error);
+    }
+    
+    // Calculer la date d'expiration
+    const expirationTime = Date.now() + (sessionDurationMinutes * 60 * 1000);
+    console.log('Expiration calculée:', new Date(expirationTime));
+    
     // Connexion réussie
     const user = {
       id: userDoc.id,
-      ...userData
+      ...userData,
+      sessionExpiration: expirationTime
     };
+    
+    console.log('Utilisateur stocké avec expiration:', user);
     
     // Créer ou mettre à jour l'utilisateur dans PostgreSQL
     try {
@@ -170,6 +210,9 @@ const login = async () => {
     }
     
     localStorage.setItem('currentUser', JSON.stringify(user));
+    
+    // Démarrer la vérification périodique de la session
+    startSessionCheck();
     
     // Petit délai pour s'assurer que tout est bien sauvegardé
     setTimeout(() => {
@@ -200,5 +243,38 @@ const login = async () => {
     toastMessage.value = 'Erreur de connexion: ' + error.message;
     showToast.value = true;
   }
+};
+
+const startSessionCheck = () => {
+  // Vérifier immédiatement
+  checkSessionExpiration();
+  
+  // Vérifier la session toutes les 10 secondes
+  setInterval(() => {
+    checkSessionExpiration();
+  }, 10000); // 10 secondes
+};
+
+const checkSessionExpiration = () => {
+  const user = localStorage.getItem('currentUser');
+  if (user) {
+    const userData = JSON.parse(user);
+    if (userData.sessionExpiration && Date.now() > userData.sessionExpiration) {
+      console.log('Session expirée, déconnexion automatique');
+      logout();
+    } else {
+      console.log('Session encore valide, expiration dans:', Math.round((userData.sessionExpiration - Date.now()) / 1000), 'secondes');
+    }
+  }
+};
+
+const logout = () => {
+  console.log('Déconnexion en cours...');
+  localStorage.removeItem('currentUser');
+  // Forcer la redirection
+  router.replace('/tabs/tab1');
+  // Afficher un message
+  toastMessage.value = 'Session expirée. Veuillez vous reconnecter.';
+  showToast.value = true;
 };
 </script>
