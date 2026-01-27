@@ -28,6 +28,7 @@ interface Report {
   longitude: number;
   Id_User: string;
   surface: number;
+  type_probleme?: string;
   description: string;
   date_ajoute: Date;
   statut: string;
@@ -351,6 +352,7 @@ const ManagerDashboard = () => {
           longitude: data.longitude,
           Id_User: data.Id_User,
           surface: data.surface,
+          type_probleme: data.type_probleme,
           description: data.description,
           date_ajoute: data.date_ajoute.toDate(),
           statut: data.statut,
@@ -550,6 +552,7 @@ const ManagerDashboard = () => {
                 <Marker key={report.id} position={[report.latitude, report.longitude]}>
                   <Popup>
                     <b>Signalement</b><br />
+                    Type: {report.type_probleme || 'Non spécifié'}<br />
                     Surface: {report.surface} m²<br />
                     Description: {report.description}<br />
                     Statut: {report.statut}<br />
@@ -652,6 +655,7 @@ const ManagerDashboard = () => {
                 <tr>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>ID</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Utilisateur</th>
+                  <th style={{ border: '1px solid #ccc', padding: '8px' }}>Type de problème</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Surface (m²)</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Description</th>
                   <th style={{ border: '1px solid #ccc', padding: '8px' }}>Statut</th>
@@ -668,6 +672,7 @@ const ManagerDashboard = () => {
                   <tr key={report.id}>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.id}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.Id_User}</td>
+                    <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.type_probleme || 'Non spécifié'}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.surface}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.description}</td>
                     <td style={{ border: '1px solid #ccc', padding: '8px' }}>{report.statut}</td>
