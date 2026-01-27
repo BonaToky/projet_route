@@ -68,7 +68,7 @@ const ManagerLogin = () => {
           👁️ Accès Visiteur - Voir la carte publique
         </Link>
       </div>
-    </div>
+    </div>  
   );
 };
 

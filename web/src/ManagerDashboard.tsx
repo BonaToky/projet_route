@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -242,7 +242,10 @@ const ManagerDashboard = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const userData = { nomUtilisateur, email, password };
+    const userData: any = { nomUtilisateur, email };
+    if (password) {
+      userData.password = password;
+    }
     try {
       const url = editingId ? `http://localhost:8080/api/auth/users/${editingId}` : 'http://localhost:8080/api/auth/users';
       const method = editingId ? 'PUT' : 'POST';
@@ -254,19 +257,41 @@ const ManagerDashboard = () => {
       if (response.ok) {
         alert(data);
         
-        // Créer aussi l'utilisateur dans Firebase Firestore
-        try {
-          await addDoc(collection(db, 'utilisateurs'), {
-            nomUtilisateur,
-            email,
-            motDePasse: password, // Note: En production, hasher le mot de passe
-            dateCreation: new Date(),
-            sourceAuth: 'local'
-          });
-          console.log('Utilisateur créé dans Firebase');
-        } catch (firebaseError) {
-          console.error('Erreur lors de la création dans Firebase:', firebaseError);
-          // Ne pas bloquer si Firebase échoue
+        if (editingId) {
+          // Mettre à jour l'utilisateur dans Firebase Firestore
+          try {
+            const q = query(collection(db, 'utilisateurs'), where('email', '==', email));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const docRef = querySnapshot.docs[0].ref;
+              const updateData: any = {};
+              if (password) {
+                updateData.motDePasse = password;
+              }
+              // Mettre à jour d'autres champs si nécessaire
+              updateData.nomUtilisateur = nomUtilisateur;
+              await updateDoc(docRef, updateData);
+              console.log('Utilisateur mis à jour dans Firebase');
+            } else {
+              console.error('Utilisateur non trouvé dans Firebase pour mise à jour');
+            }
+          } catch (firebaseError) {
+            console.error('Erreur lors de la mise à jour dans Firebase:', firebaseError);
+          }
+        } else {
+          // Créer un nouvel utilisateur dans Firebase Firestore
+          try {
+            await addDoc(collection(db, 'utilisateurs'), {
+              nomUtilisateur,
+              email,
+              motDePasse: password,
+              dateCreation: new Date(),
+              sourceAuth: 'local'
+            });
+            console.log('Utilisateur créé dans Firebase');
+          } catch (firebaseError) {
+            console.error('Erreur lors de la création dans Firebase:', firebaseError);
+          }
         }
         
         fetchUsers();
