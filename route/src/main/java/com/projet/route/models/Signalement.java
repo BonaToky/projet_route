@@ -29,6 +29,9 @@ public class Signalement {
     @Column(nullable = false)
     private String idUser;
 
+    @Column(name = "type_probleme", columnDefinition = "VARCHAR(50)")
+    private String typeProbleme;
+
     @Column(columnDefinition = "VARCHAR(20) DEFAULT 'non traité'")
     private String statut = "non traité";
 
@@ -50,6 +53,8 @@ public class Signalement {
     public void setLieux(Lieux lieux) { this.lieux = lieux; }
     public String getIdUser() { return idUser; }
     public void setIdUser(String idUser) { this.idUser = idUser; }
+    public String getTypeProbleme() { return typeProbleme; }
+    public void setTypeProbleme(String typeProbleme) { this.typeProbleme = typeProbleme; }
     public String getStatut() { return statut; }
     public void setStatut(String statut) { this.statut = statut; }
     public String getDescription() { return description; }
