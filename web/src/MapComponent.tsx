@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -16,6 +17,7 @@ interface Signalement {
 }
 
 const MapComponent = () => {
+  const navigate = useNavigate();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(13);
@@ -542,6 +544,36 @@ const MapComponent = () => {
           <li><strong>Double-cliquez</strong> sur la carte pour créer un nouveau signalement (marqueur violet)</li>
           <li>Zoomez pour une position précise avant de double-cliquer</li>
         </ul>
+      </div>
+
+      {/* Bouton de création d'utilisateur */}
+      <div style={{ marginTop: '20px', textAlign: 'center' }}>
+        <button
+          onClick={() => navigate('/create-user')}
+          style={{
+            padding: '12px 24px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+            width: '100%'
+          }}
+          onMouseOver={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+          }}
+          onMouseOut={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+          }}
+        >
+          👥 Créer un Utilisateur
+        </button>
       </div>
     </div>
   );

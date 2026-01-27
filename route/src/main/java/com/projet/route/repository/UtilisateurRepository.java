@@ -1,5 +1,6 @@
 package com.projet.route.repository;
 
+import com.projet.route.models.Role;
 import com.projet.route.models.Utilisateur;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -24,7 +25,7 @@ public interface UtilisateurRepository extends JpaRepository<Utilisateur, Long> 
     
     List<Utilisateur> findByEstBloque(Boolean estBloque);
     
-    List<Utilisateur> findByIdRole(Integer idRole);
+    List<Utilisateur> findByRole(Role role);
     
     List<Utilisateur> findBySourceAuth(String sourceAuth);
     

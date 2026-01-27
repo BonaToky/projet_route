@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
+import { auth } from './firebase';
 
 interface SignalementForm {
   latitude: number;
@@ -19,6 +20,7 @@ interface Lieu {
 }
 
 const InsertSignalement = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<SignalementForm>({
     latitude: 0,
     longitude: 0,
@@ -26,10 +28,9 @@ const InsertSignalement = () => {
     idLieux: undefined,
     typeProbleme: 'nid de poule',
     description: '',
-    idUser: 'user_firebase_001',
+    idUser: '',
   });
   
-  const navigate = useNavigate();
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loadingLieux, setLoadingLieux] = useState(true);
   const [lieuxError, setLieuxError] = useState<string | null>(null);
@@ -37,6 +38,24 @@ const InsertSignalement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Récupération de l'utilisateur connecté
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setFormData((prev) => ({
+          ...prev,
+          idUser: user.uid,
+        }));
+      } else {
+        setAuthError('Vous devez être connecté pour créer un signalement');
+        navigate('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
 
   // Chargement des lieux
   useEffect(() => {
@@ -112,7 +131,7 @@ const InsertSignalement = () => {
           idLieux: undefined,
           typeProbleme: 'nid de poule',
           description: '',
-          idUser: 'user_firebase_001',
+          idUser: formData.idUser, // Garde l'ID de session
         });
         setSuccess(false);
       }, 2000);
@@ -132,7 +151,7 @@ const InsertSignalement = () => {
       idLieux: undefined,
       typeProbleme: 'nid de poule',
       description: '',
-      idUser: 'user_firebase_001',
+      idUser: formData.idUser, // Garde l'ID de session
     });
     setError(null);
     setSuccess(false);
@@ -359,7 +378,7 @@ const InsertSignalement = () => {
               </select>
           </div>
 
-          {/* ID utilisateur */}
+          {/* ID utilisateur - Lecture seule */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ 
               display: 'block', 
@@ -368,28 +387,27 @@ const InsertSignalement = () => {
               color: '#495057',
               fontSize: '14px'
             }}>
-              👤 Identifiant utilisateur *
+              👤 Identifiant utilisateur
             </label>
             <input
               type="text"
               value={formData.idUser}
-              onChange={(e) => setFormData({ ...formData, idUser: e.target.value.trim() })}
-              placeholder="Ex: user_firebase_001"
+              disabled
+              placeholder="En cours de chargement..."
               style={{
                 width: '100%',
                 padding: '12px',
                 borderRadius: '8px',
-                border: formData.idUser ? '2px solid #dee2e6' : '2px solid #dc3545',
+                border: '2px solid #dee2e6',
                 fontSize: '15px',
                 color: '#495057',
-                background: formData.idUser ? 'white' : '#fff5f5'
+                background: '#f8f9fa',
+                cursor: 'not-allowed'
               }}
             />
-            {!formData.idUser && (
-              <div style={{ marginTop: '5px', fontSize: '12px', color: '#dc3545' }}>
-                L'identifiant utilisateur est requis
-              </div>
-            )}
+            <div style={{ marginTop: '5px', fontSize: '12px', color: '#6c757d' }}>
+              Récupéré automatiquement depuis votre session
+            </div>
           </div>
 
           {/* Description */}
