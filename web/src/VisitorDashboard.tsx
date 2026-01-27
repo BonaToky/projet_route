@@ -4,15 +4,50 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import './styles/login.css';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';
 delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+
+// Custom icons for different problem types
+const createCustomIcon = (color: string, emoji: string) => {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="
+      background: ${color};
+      width: 36px;
+      height: 36px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    ">
+      <span style="transform: rotate(45deg); font-size: 14px;">${emoji}</span>
+    </div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+  });
+};
+
+const problemIcons: { [key: string]: L.DivIcon } = {
+  'nid-de-poule': createCustomIcon('#ef4444', '🕳️'),
+  'route-inondee': createCustomIcon('#3b82f6', '🌊'),
+  'route-endommagee': createCustomIcon('#f97316', '⚠️'),
+  'signalisation-manquante': createCustomIcon('#eab308', '🚧'),
+  'eclairage-defectueux': createCustomIcon('#8b5cf6', '💡'),
+  'autre': createCustomIcon('#6b7280', '📍'),
+  'default': createCustomIcon('#10b981', '📍'),
+};
+
+const getIconForProblem = (type?: string) => {
+  if (!type) return problemIcons['default'];
+  return problemIcons[type] || problemIcons['default'];
+};
 
 interface Report {
   id: string;
@@ -20,6 +55,7 @@ interface Report {
   longitude: number;
   Id_User: string;
   surface: number;
+  type_probleme?: string;
   description: string;
   date_ajoute: Date;
   statut: string;
@@ -66,7 +102,6 @@ const VisitorDashboard = () => {
 
   const syncReports = async () => {
     try {
-      // Récupérer les signalements
       const querySnapshot = await getDocs(collection(db, 'signalements'));
       const reportsData: Report[] = [];
       querySnapshot.forEach((doc) => {
@@ -77,13 +112,13 @@ const VisitorDashboard = () => {
           longitude: data.longitude,
           Id_User: data.Id_User,
           surface: data.surface,
+          type_probleme: data.type_probleme,
           description: data.description,
           date_ajoute: data.date_ajoute.toDate(),
           statut: data.statut,
         });
       });
 
-      // Récupérer les travaux
       const travauxSnapshot = await getDocs(collection(db, 'travaux'));
       const travauxData: any[] = [];
       travauxSnapshot.forEach((doc) => {
@@ -99,16 +134,15 @@ const VisitorDashboard = () => {
         });
       });
 
-      // Associer les travaux aux signalements et ajouter les noms d'entreprises
       const reportsWithTravaux = reportsData.map(report => {
         const travaux = travauxData.find(t => t.id_signalement === report.id);
         if (travaux) {
-          const entreprise = entreprises.find(e => e.idEntreprise === travaux.id_entreprise);
+          const ent = entreprises.find(e => e.idEntreprise === travaux.id_entreprise);
           return {
             ...report,
             travaux: {
               ...travaux,
-              entreprise_nom: entreprise ? entreprise.nom : 'Entreprise inconnue'
+              entreprise_nom: ent ? ent.nom : 'Entreprise inconnue'
             }
           };
         }
@@ -127,7 +161,6 @@ const VisitorDashboard = () => {
     const count = reports.length;
     const totalSurface = reports.reduce((sum, report) => sum + report.surface, 0);
 
-    // Calculer l'avancement moyen et le budget total
     const travauxWithData = reports.filter(report => report.travaux);
     const averageAvancement = travauxWithData.length > 0
       ? travauxWithData.reduce((sum, report) => sum + (report.travaux?.avancement || 0), 0) / travauxWithData.length
@@ -138,7 +171,7 @@ const VisitorDashboard = () => {
     setRecapData({
       count,
       totalSurface,
-      averageAvancement: Math.round(averageAvancement * 100) / 100, // Arrondi à 2 décimales
+      averageAvancement: Math.round(averageAvancement * 100) / 100,
       totalBudget
     });
   };
@@ -152,61 +185,86 @@ const VisitorDashboard = () => {
     }
   };
 
+  const getProblemTypeLabel = (type?: string) => {
+    const labels: { [key: string]: string } = {
+      'nid-de-poule': 'Nid de poule',
+      'route-inondee': 'Route inondée',
+      'route-endommagee': 'Route endommagée',
+      'signalisation-manquante': 'Signalisation manquante',
+      'eclairage-defectueux': 'Éclairage défectueux',
+      'autre': 'Autre',
+    };
+    return labels[type || ''] || 'Problème Routier';
+  };
+
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <header style={{
-        background: '#2c3e50',
-        color: 'white',
-        padding: '20px',
-        textAlign: 'center',
-        position: 'relative'
-      }}>
-        <Link
-          to="/dashboard"
-          style={{
-            position: 'absolute',
-            right: '20px',
-            top: '20px',
-            color: 'white',
-            textDecoration: 'none',
-            padding: '8px 16px',
-            background: '#007bff',
-            borderRadius: '4px',
-            fontSize: '14px'
-          }}
-        >
-          Administration
-        </Link>
-        <h1>Carte des Problèmes Routiers</h1>
-        <p>Consultez l'état des réparations en cours</p>
+    <div className="visitor-dashboard">
+      <header className="visitor-header">
+        <div className="visitor-logo">
+          <div className="visitor-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <span className="visitor-logo-text">RouteWatch</span>
+        </div>
+        <nav className="visitor-nav">
+          <Link to="/">Espace Gestionnaire</Link>
+        </nav>
       </header>
 
-      <div style={{ flex: 1, display: 'flex' }}>
-        {/* Carte */}
-        <div style={{ flex: 2, position: 'relative' }}>
+      <div className="visitor-content">
+        <div className="visitor-map" style={{ height: 'calc(100vh - 81px)', minHeight: '700px' }}>
           <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               attribution='© OpenStreetMap contributors'
             />
             {reports.map((report) => (
-              <Marker key={report.id} position={[report.latitude, report.longitude]}>
+              <Marker 
+                key={report.id} 
+                position={[report.latitude, report.longitude]}
+                icon={getIconForProblem(report.type_probleme)}
+              >
                 <Popup>
-                  <div style={{ minWidth: '200px' }}>
-                    <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Problème Routier</h4>
-                    <p style={{ margin: '5px 0' }}><strong>Date:</strong> {report.date_ajoute.toLocaleDateString('fr-FR')}</p>
-                    <p style={{ margin: '5px 0' }}><strong>Statut:</strong> {getStatusText(report.statut)}</p>
-                    <p style={{ margin: '5px 0' }}><strong>Surface:</strong> {report.surface} m²</p>
+                  <div className="popup-content">
+                    <div className="popup-header">
+                      <div className="popup-icon" style={{background: 'rgba(59, 130, 246, 0.1)'}}>
+                        {report.type_probleme === 'nid-de-poule' && '🕳️'}
+                        {report.type_probleme === 'route-inondee' && '🌊'}
+                        {report.type_probleme === 'route-endommagee' && '⚠️'}
+                        {report.type_probleme === 'signalisation-manquante' && '🚧'}
+                        {report.type_probleme === 'eclairage-defectueux' && '💡'}
+                        {(!report.type_probleme || report.type_probleme === 'autre') && '📍'}
+                      </div>
+                      <h4 className="popup-title">{getProblemTypeLabel(report.type_probleme)}</h4>
+                    </div>
+                    <div className="popup-row">
+                      <span className="popup-label">Date</span>
+                      <span className="popup-value">{report.date_ajoute.toLocaleDateString('fr-FR')}</span>
+                    </div>
+                    <div className="popup-row">
+                      <span className="popup-label">Statut</span>
+                      <span className="popup-value">{getStatusText(report.statut)}</span>
+                    </div>
+                    <div className="popup-row">
+                      <span className="popup-label">Surface</span>
+                      <span className="popup-value">{report.surface} m²</span>
+                    </div>
                     {report.travaux && (
                       <>
-                        <p style={{ margin: '5px 0' }}><strong>Budget:</strong> {report.travaux.budget.toLocaleString()} Ar</p>
-                        <p style={{ margin: '5px 0' }}><strong>Entreprise:</strong> {report.travaux.entreprise_nom}</p>
-                        <p style={{ margin: '5px 0' }}><strong>Avancement:</strong> {report.travaux.avancement}%</p>
+                        <div className="popup-row">
+                          <span className="popup-label">Budget</span>
+                          <span className="popup-value">{report.travaux.budget.toLocaleString()} Ar</span>
+                        </div>
+                        <div className="popup-row">
+                          <span className="popup-label">Avancement</span>
+                          <span className="popup-value">{report.travaux.avancement}%</span>
+                        </div>
                       </>
                     )}
-                    <p style={{ margin: '10px 0 5px 0', fontSize: '14px', color: '#666' }}>
-                      {report.description}
-                    </p>
                   </div>
                 </Popup>
               </Marker>
@@ -214,100 +272,73 @@ const VisitorDashboard = () => {
           </MapContainer>
         </div>
 
-        {/* Tableau de récapitulation */}
-        <div style={{
-          flex: 1,
-          padding: '20px',
-          background: '#f8f9fa',
-          borderLeft: '1px solid #dee2e6',
-          overflowY: 'auto'
-        }}>
-          <h3 style={{ color: '#2c3e50', marginBottom: '20px' }}>Récapitulation</h3>
+        <aside className="visitor-sidebar">
+          <h3 className="visitor-sidebar-title">Récapitulatif</h3>
 
-          <div style={{
-            background: 'white',
-            borderRadius: '8px',
-            padding: '20px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '15px',
-              padding: '10px',
-              border: '1px solid #e9ecef',
-              borderRadius: '4px'
-            }}>
-              <div style={{ fontSize: '24px', color: '#007bff', marginRight: '15px' }}>📍</div>
-              <div>
-                <div style={{ fontSize: '14px', color: '#6c757d' }}>Nombre de points</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>{recapData.count}</div>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '15px',
-              padding: '10px',
-              border: '1px solid #e9ecef',
-              borderRadius: '4px'
-            }}>
-              <div style={{ fontSize: '24px', color: '#28a745', marginRight: '15px' }}>📐</div>
-              <div>
-                <div style={{ fontSize: '14px', color: '#6c757d' }}>Surface totale</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>{recapData.totalSurface} m²</div>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '15px',
-              padding: '10px',
-              border: '1px solid #e9ecef',
-              borderRadius: '4px'
-            }}>
-              <div style={{ fontSize: '24px', color: '#ffc107', marginRight: '15px' }}>⚡</div>
-              <div>
-                <div style={{ fontSize: '14px', color: '#6c757d' }}>Avancement moyen</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>{recapData.averageAvancement}%</div>
-              </div>
-            </div>
-
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: '15px',
-              padding: '10px',
-              border: '1px solid #e9ecef',
-              borderRadius: '4px'
-            }}>
-              <div style={{ fontSize: '24px', color: '#dc3545', marginRight: '15px' }}>💰</div>
-              <div>
-                <div style={{ fontSize: '14px', color: '#6c757d' }}>Budget total</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#2c3e50' }}>{recapData.totalBudget.toLocaleString()} Ar</div>
-              </div>
+          <div className="recap-card">
+            <div className="recap-icon blue">📍</div>
+            <div className="recap-info">
+              <span className="recap-label">Points signalés</span>
+              <span className="recap-value">{recapData.count}</span>
             </div>
           </div>
 
-          <button
-            onClick={syncReports}
-            style={{
-              width: '100%',
-              padding: '12px',
-              marginTop: '20px',
-              background: '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            Actualiser les données
+          <div className="recap-card">
+            <div className="recap-icon green">📐</div>
+            <div className="recap-info">
+              <span className="recap-label">Surface totale</span>
+              <span className="recap-value">{recapData.totalSurface} m²</span>
+            </div>
+          </div>
+
+          <div className="recap-card">
+            <div className="recap-icon yellow">⚡</div>
+            <div className="recap-info">
+              <span className="recap-label">Avancement moyen</span>
+              <span className="recap-value">{recapData.averageAvancement}%</span>
+            </div>
+          </div>
+
+          <div className="recap-card">
+            <div className="recap-icon red">💰</div>
+            <div className="recap-info">
+              <span className="recap-label">Budget total</span>
+              <span className="recap-value">{recapData.totalBudget.toLocaleString()} Ar</span>
+            </div>
+          </div>
+
+          <button onClick={syncReports} className="btn btn-primary" style={{width: '100%', marginTop: '16px'}}>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width: '18px', height: '18px'}}>
+              <path d="M23 4V10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 20V14H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Actualiser
           </button>
-        </div>
+
+          <div className="legend-card">
+            <h4 className="legend-title">Légende</h4>
+            <div className="legend-item">
+              <div className="legend-color red">🕳️</div>
+              <span className="legend-label">Nid de poule</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color blue">🌊</div>
+              <span className="legend-label">Route inondée</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color orange">⚠️</div>
+              <span className="legend-label">Route endommagée</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color yellow">🚧</div>
+              <span className="legend-label">Signalisation manquante</span>
+            </div>
+            <div className="legend-item">
+              <div className="legend-color purple">💡</div>
+              <span className="legend-label">Éclairage défectueux</span>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );
