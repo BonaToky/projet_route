@@ -85,7 +85,7 @@ CREATE TABLE signalement (
    FOREIGN KEY(Id_Lieux) REFERENCES Lieux(Id_Lieux)
 );
 
-ALTER TABLE signalement DROP COLUMN type_probleme;
+-- ALTER TABLE signalement DROP COLUMN type_probleme; -- REMIS EN COMMENTAIRE
 -- ALTER TABLE signalement DROP COLUMN statut; -- Garder la colonne statut
 
 CREATE TABLE travaux (

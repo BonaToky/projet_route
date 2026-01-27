@@ -25,6 +25,17 @@
         </ion-header>
         <ion-content>
           <ion-item>
+            <ion-label position="floating">Type de problème</ion-label>
+            <ion-select v-model="typeProbleme" placeholder="Sélectionnez le type">
+              <ion-select-option value="nid-de-poule">Nid de poule</ion-select-option>
+              <ion-select-option value="route-inondee">Route inondée</ion-select-option>
+              <ion-select-option value="route-endommagee">Route endommagée</ion-select-option>
+              <ion-select-option value="signalisation-manquante">Signalisation manquante</ion-select-option>
+              <ion-select-option value="eclairage-defectueux">Éclairage défectueux</ion-select-option>
+              <ion-select-option value="autre">Autre</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
             <ion-label position="floating">Surface (m²)</ion-label>
             <ion-input v-model="surface" type="number" placeholder="Entrez la surface estimée"></ion-input>
           </ion-item>
@@ -81,7 +92,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonItem, IonLabel, IonInput, IonTextarea, IonToast, IonList, IonNote } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonItem, IonLabel, IonInput, IonTextarea, IonToast, IonList, IonNote, IonSelect, IonSelectOption } from '@ionic/vue';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
@@ -94,6 +105,7 @@ let marker: L.Marker | null = null;
 const showModal = ref(false);
 const description = ref('');
 const surface = ref('');
+const typeProbleme = ref('');
 const showToast = ref(false);
 const toastMessage = ref('');
 const currentLatLng = ref<L.LatLng | null>(null);
@@ -190,6 +202,7 @@ const loadAllReports = async () => {
       
       let popupContent = `
         <b>Signalement</b><br>
+        Type: ${signalement.type_probleme || 'Non spécifié'}<br>
         Surface: ${signalement.surface} m²<br>
         Description: ${signalement.description}<br>
         Statut: ${signalement.statut || 'Non traité'}<br>
@@ -219,6 +232,7 @@ const closeModal = () => {
   showModal.value = false;
   description.value = '';
   surface.value = '';
+  typeProbleme.value = '';
   if (marker && map) {
     map.removeLayer(marker as L.Layer);
     marker = null;
@@ -229,6 +243,11 @@ const closeModal = () => {
 const submitReport = async () => {
   if (!currentLatLng.value) {
     toastMessage.value = 'Veuillez sélectionner un emplacement';
+    showToast.value = true;
+    return;
+  }
+  if (!typeProbleme.value) {
+    toastMessage.value = 'Veuillez sélectionner un type de problème';
     showToast.value = true;
     return;
   }
@@ -252,6 +271,7 @@ const submitReport = async () => {
       longitude: currentLatLng.value.lng,
       Id_User: user.id, // Use Firebase user ID
       surface: parseFloat(surface.value) || 0,
+      type_probleme: typeProbleme.value,
       description: description.value,
       date_ajoute: new Date(),
       statut: 'non traité'
