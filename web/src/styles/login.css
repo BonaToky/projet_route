@@ -456,6 +456,11 @@
   padding: 24px 32px;
   min-height: 100vh;
   overflow-y: auto;
+
+  /* Fill the width left by the fixed sidebar */
+  width: calc(100% - 280px);
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .page-header {
@@ -476,6 +481,15 @@
   margin: 0;
 }
 
+/* Constrain content width for non-map pages (restore previous fixed width) */
+.content-wrapper {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
 /* ==========================================
    MAP CONTAINER
    ========================================== */
@@ -489,6 +503,11 @@
   min-height: 550px;
   box-shadow: var(--shadow);
   margin-top: 16px;
+
+  /* Expand to fill the full width of the main content */
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .map-container .leaflet-container {

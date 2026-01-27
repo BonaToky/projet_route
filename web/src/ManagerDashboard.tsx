@@ -1,13 +1,29 @@
 import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import { db } from './firebase';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import './styles/login.css';
 
 // Fix for default markers in react-leaflet
 import L from 'leaflet';
 delete (L.Icon.Default.prototype as any)._getIconUrl;
+
+// Small helper to force Leaflet to recalculate size after render or window resize
+const MapResizeFix = () => {
+  const map = useMap();
+  useEffect(() => {
+    const invalidate = () => map.invalidateSize();
+    // call once after a short delay to account for layout changes
+    const t = setTimeout(invalidate, 200);
+    window.addEventListener('resize', invalidate);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', invalidate);
+    };
+  }, [map]);
+  return null;
+};
 
 // Custom icons for different problem types
 const createCustomIcon = (color: string, emoji: string) => {
@@ -664,6 +680,7 @@ const ManagerDashboard = () => {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='© OpenStreetMap contributors'
                 />
+                <MapResizeFix />
                 {reports.map((report) => (
                   <Marker 
                     key={report.id} 
@@ -714,7 +731,7 @@ const ManagerDashboard = () => {
         )}
 
         {currentView === 'users' && (
-          <>
+          <div className="content-wrapper">
             <div className="page-header">
               <h1 className="page-title">Gestion des Utilisateurs</h1>
               <p className="page-subtitle">Gérez les comptes utilisateurs du système</p>
@@ -780,11 +797,11 @@ const ManagerDashboard = () => {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
 
         {currentView === 'reports' && (
-          <>
+          <div className="content-wrapper">
             <div className="page-header">
               <h1 className="page-title">Gestion des Signalements</h1>
               <p className="page-subtitle">Suivez et gérez tous les problèmes routiers</p>
@@ -885,11 +902,11 @@ const ManagerDashboard = () => {
                 </table>
               </div>
             </div>
-          </>
-        )}
+          </div>
+        )} 
 
         {currentView === 'config' && (
-          <>
+          <div className="content-wrapper">
             <div className="page-header">
               <h1 className="page-title">Configuration</h1>
               <p className="page-subtitle">Paramètres et règles de gestion du système</p>
@@ -938,7 +955,7 @@ const ManagerDashboard = () => {
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         )}
 
         {/* User Modal */}
