@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { auth } from './firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 interface SignalementForm {
   latitude: number;
@@ -34,23 +35,29 @@ const InsertSignalement = () => {
   const [lieux, setLieux] = useState<Lieu[]>([]);
   const [loadingLieux, setLoadingLieux] = useState(true);
   const [lieuxError, setLieuxError] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Récupération de l'utilisateur connecté
+  // Vérification de l'authentification
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setFormData((prev) => ({
           ...prev,
           idUser: user.uid,
         }));
+        setAuthLoading(false);
       } else {
         setAuthError('Vous devez être connecté pour créer un signalement');
-        navigate('/login');
+        setAuthLoading(false);
+        // Redirige après 2 secondes
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
       }
     });
 
@@ -124,15 +131,15 @@ const InsertSignalement = () => {
 
       // Reset après 2 secondes
       setTimeout(() => {
-        setFormData({
+        setFormData((prev) => ({
+          ...prev,
           latitude: 0,
           longitude: 0,
           surface: undefined,
           idLieux: undefined,
           typeProbleme: 'nid de poule',
           description: '',
-          idUser: formData.idUser, // Garde l'ID de session
-        });
+        }));
         setSuccess(false);
       }, 2000);
     } catch (err) {
@@ -144,15 +151,15 @@ const InsertSignalement = () => {
   };
 
   const handleReset = () => {
-    setFormData({
+    setFormData((prev) => ({
+      ...prev,
       latitude: 0,
       longitude: 0,
       surface: undefined,
       idLieux: undefined,
       typeProbleme: 'nid de poule',
       description: '',
-      idUser: formData.idUser, // Garde l'ID de session
-    });
+    }));
     setError(null);
     setSuccess(false);
   };
@@ -168,6 +175,40 @@ const InsertSignalement = () => {
         justifyContent: 'center',
       }}
     >
+      {authLoading ? (
+        <div
+          style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '60px 40px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
+          <h2 style={{ color: '#667eea', marginBottom: '10px' }}>Vérification de session</h2>
+          <p style={{ color: '#666' }}>Veuillez patienter...</p>
+        </div>
+      ) : authError ? (
+        <div
+          style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '60px 40px',
+            maxWidth: '600px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>🔐</div>
+          <h2 style={{ color: '#dc3545', marginBottom: '10px' }}>Accès refusé</h2>
+          <p style={{ color: '#666' }}>{authError}</p>
+          <p style={{ color: '#999', fontSize: '14px' }}>Redirection vers la connexion...</p>
+        </div>
+      ) : (
       <div
         style={{
           background: 'white',
@@ -378,7 +419,7 @@ const InsertSignalement = () => {
               </select>
           </div>
 
-          {/* ID utilisateur - Lecture seule */}
+          {/* ID utilisateur */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ 
               display: 'block', 
@@ -387,27 +428,28 @@ const InsertSignalement = () => {
               color: '#495057',
               fontSize: '14px'
             }}>
-              👤 Identifiant utilisateur
+              👤 Identifiant utilisateur *
             </label>
             <input
               type="text"
               value={formData.idUser}
-              disabled
-              placeholder="En cours de chargement..."
+              onChange={(e) => setFormData({ ...formData, idUser: e.target.value.trim() })}
+              placeholder="1"
               style={{
                 width: '100%',
                 padding: '12px',
                 borderRadius: '8px',
-                border: '2px solid #dee2e6',
+                border: formData.idUser ? '2px solid #dee2e6' : '2px solid #dc3545',
                 fontSize: '15px',
                 color: '#495057',
-                background: '#f8f9fa',
-                cursor: 'not-allowed'
+                background: formData.idUser ? 'white' : '#fff5f5'
               }}
             />
-            <div style={{ marginTop: '5px', fontSize: '12px', color: '#6c757d' }}>
-              Récupéré automatiquement depuis votre session
-            </div>
+            {!formData.idUser && (
+              <div style={{ marginTop: '5px', fontSize: '12px', color: '#dc3545' }}>
+                L'identifiant utilisateur est requis
+              </div>
+            )}
           </div>
 
           {/* Description */}
@@ -494,6 +536,7 @@ const InsertSignalement = () => {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };

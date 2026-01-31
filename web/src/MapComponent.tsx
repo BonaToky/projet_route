@@ -356,15 +356,36 @@ const MapComponent = () => {
 
   return (
     <div style={{ 
-      width: '100%', 
-      minHeight: '600px',
-      position: 'relative',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
+      height: '100vh',
+      margin: 0,
+      padding: 0,
       backgroundColor: '#fafafa',
-      padding: '20px',
-      borderRadius: '12px',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+      overflow: 'hidden',
+      zIndex: 1
     }}>
-      <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+      {/* Header flottant en haut */}
+      <div style={{ 
+        position: 'absolute',
+        top: '10px',
+        left: '10px',
+        right: '10px',
+        zIndex: 10,
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        flexWrap: 'wrap', 
+        gap: '10px',
+        background: 'rgba(255,255,255,0.95)',
+        padding: '15px',
+        borderRadius: '8px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+      }}>
         <div>
           <h3 style={{ margin: '0 0 5px 0', color: '#1976d2', fontSize: '20px' }}>
             🗺️ Carte des Signalements - Antananarivo
@@ -412,22 +433,24 @@ const MapComponent = () => {
         </div>
       </div>
       
+      {/* LA CARTE EN PLEIN ÉCRAN */}
       <div 
         ref={mapContainer} 
         style={{ 
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: '100%', 
-          height: '650px',
-          border: '3px solid #1976d2',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+          height: '100vh',
+          overflow: 'hidden'
         }}
       />
       
+      {/* Zoom indicator - en bas à droite */}
       <div style={{
         position: 'absolute',
-        bottom: '30px',
-        right: '30px',
+        bottom: '20px',
+        right: '20px',
         background: 'rgba(255, 255, 255, 0.95)',
         padding: '12px 18px',
         borderRadius: '8px',
@@ -449,15 +472,19 @@ const MapComponent = () => {
         )}
       </div>
       
-      {/* Panneau pour créer un nouveau signalement */}
+      {/* Panneau création - en bas à gauche */}
       {selectedPoint && (
         <div style={{
-          marginTop: '15px',
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          maxWidth: '400px',
           padding: '20px',
           background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
           borderRadius: '12px',
           border: '2px solid #9c27b0',
-          boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
+          boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)',
+          zIndex: 1000
         }}>
           <div style={{ marginBottom: '15px' }}>
             <h4 style={{ margin: '0 0 10px 0', color: '#6a1b9a', fontSize: '18px' }}>
@@ -519,35 +546,45 @@ const MapComponent = () => {
                 transition: 'all 0.3s ease'
               }}
             >
-              ❌ Annuler
+              ❌
             </button>
           </div>
         </div>
       )}
-      
-      {/* Instructions */}
+
+      {/* Instructions flottantes - en haut à gauche sous le header */}
       <div style={{
-        marginTop: '15px',
+        position: 'absolute',
+        top: '120px',
+        left: '10px',
+        maxWidth: '350px',
         padding: '12px 15px',
-        background: 'linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%)',
+        background: 'rgba(227, 242, 253, 0.95)',
         borderRadius: '8px',
         fontSize: '13px',
         color: '#555',
-        border: '1px solid #bbdefb'
+        border: '1px solid #bbdefb',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        zIndex: 9
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
           <span style={{ fontSize: '16px' }}>💡</span>
           <span style={{ fontWeight: '600', color: '#1976d2' }}>Conseils :</span>
         </div>
         <ul style={{ margin: '5px 0 0 28px', padding: 0, lineHeight: '1.8' }}>
-          <li>Cliquez sur les marqueurs colorés pour voir les détails des signalements existants</li>
-          <li><strong>Double-cliquez</strong> sur la carte pour créer un nouveau signalement (marqueur violet)</li>
-          <li>Zoomez pour une position précise avant de double-cliquer</li>
+          <li>Cliquez sur les marqueurs colorés pour voir les détails</li>
+          <li><strong>Double-cliquez</strong> sur la carte pour créer un nouveau signalement</li>
+          <li>Zoomez pour une position précise</li>
         </ul>
       </div>
 
-      {/* Bouton de création d'utilisateur */}
-      <div style={{ marginTop: '20px', textAlign: 'center' }}>
+      {/* Bouton création utilisateur - en haut à droite sous le header */}
+      <div style={{
+        position: 'absolute',
+        top: '120px',
+        right: '10px',
+        zIndex: 9
+      }}>
         <button
           onClick={() => navigate('/create-user')}
           style={{
@@ -560,8 +597,7 @@ const MapComponent = () => {
             fontWeight: '700',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-            width: '100%'
+            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
           }}
           onMouseOver={(e) => {
             (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';

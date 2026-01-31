@@ -8,17 +8,27 @@ interface User {
   nomUtilisateur: string;
   email: string;
   role: { nom: string };
+  estBloque: boolean;
 }
 
-const ManagerDashboard = () => {
+interface Role {
+  id: number;
+  nom: string;
+}
+
+const CreateUser = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [nomUtilisateur, setNomUtilisateur] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('');
+  const [estBloque, setEstBloque] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
+    fetchRoles();
     fetchUsers();
   }, []);
 
@@ -32,16 +42,28 @@ const ManagerDashboard = () => {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/roles');
+      const data = await response.json();
+      setRoles(data);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+    }
+  };
+
   const resetForm = () => {
     setNomUtilisateur('');
     setEmail('');
     setPassword('');
+    setRole('');
+    setEstBloque(false);
     setEditingId(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const userData = { nomUtilisateur, email, password };
+    const userData = { nomUtilisateur, email, password, role, estBloque };
     try {
       const url = editingId ? `http://localhost:8080/api/auth/users/${editingId}` : 'http://localhost:8080/api/auth/users';
       const method = editingId ? 'PUT' : 'POST';
@@ -55,18 +77,20 @@ const ManagerDashboard = () => {
         alert(data);
         
         // Créer aussi l'utilisateur dans Firebase Firestore
-        try {
-          await addDoc(collection(db, 'utilisateurs'), {
-            nomUtilisateur,
-            email,
-            motDePasse: password, // Note: En production, hasher le mot de passe
-            dateCreation: new Date(),
-            sourceAuth: 'local'
-          });
-          console.log('Utilisateur créé dans Firebase');
-        } catch (firebaseError) {
-          console.error('Erreur lors de la création dans Firebase:', firebaseError);
-          // Ne pas bloquer si Firebase échoue
+        if (!editingId) {
+          try {
+            await addDoc(collection(db, 'utilisateurs'), {
+              nomUtilisateur,
+              email,
+              motDePasse: password, // Note: En production, hasher le mot de passe
+              dateCreation: new Date(),
+              sourceAuth: 'local'
+            });
+            console.log('Utilisateur créé dans Firebase');
+          } catch (firebaseError) {
+            console.error('Erreur lors de la création dans Firebase:', firebaseError);
+            // Ne pas bloquer si Firebase échoue
+          }
         }
         
         fetchUsers();
@@ -84,6 +108,8 @@ const ManagerDashboard = () => {
     setNomUtilisateur(user.nomUtilisateur);
     setEmail(user.email);
     setPassword('');
+    setRole(user.role.nom);
+    setEstBloque(user.estBloque);
     setEditingId(user.idUtilisateur);
   };
 
@@ -168,6 +194,35 @@ const ManagerDashboard = () => {
           />
         </div>
         
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Rôle:</label>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            required
+            style={{ width: '100%', padding: '10px', boxSizing: 'border-box', border: '1px solid #ccc', borderRadius: '4px' }}
+          >
+            <option value="">-- Sélectionner un rôle --</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.nom}>
+                {r.nom}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', fontWeight: 'bold', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={estBloque}
+              onChange={(e) => setEstBloque(e.target.checked)}
+              style={{ marginRight: '8px', cursor: 'pointer', width: '18px', height: '18px' }}
+            />
+            Bloquer cet utilisateur
+          </label>
+        </div>
+        
         <div style={{ display: 'flex', gap: '10px' }}>
           <button type="submit" style={{ flex: 1, padding: '12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
             {editingId ? 'Modifier' : 'Créer'}
@@ -188,6 +243,7 @@ const ManagerDashboard = () => {
             <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>Nom</th>
             <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>Email</th>
             <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'left' }}>Rôle</th>
+            <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>Statut</th>
             <th style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>Actions</th>
           </tr>
         </thead>
@@ -198,6 +254,17 @@ const ManagerDashboard = () => {
               <td style={{ border: '1px solid #ccc', padding: '12px' }}>{user.nomUtilisateur}</td>
               <td style={{ border: '1px solid #ccc', padding: '12px' }}>{user.email}</td>
               <td style={{ border: '1px solid #ccc', padding: '12px' }}>{user.role.nom}</td>
+              <td style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>
+                <span style={{ 
+                  padding: '4px 8px', 
+                  borderRadius: '4px', 
+                  backgroundColor: user.estBloque ? '#dc3545' : '#28a745', 
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}>
+                  {user.estBloque ? 'Bloqué' : 'Actif'}
+                </span>
+              </td>
               <td style={{ border: '1px solid #ccc', padding: '12px', textAlign: 'center' }}>
                 <button onClick={() => handleEdit(user)} style={{ marginRight: '10px', padding: '6px 12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Modifier</button>
                 <button onClick={() => handleDelete(user.idUtilisateur)} style={{ padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Supprimer</button>
@@ -210,4 +277,4 @@ const ManagerDashboard = () => {
   );
 };
 
-export default ManagerDashboard;
+export default CreateUser;
