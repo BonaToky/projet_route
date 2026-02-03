@@ -1,8 +1,6 @@
 package com.projet.route.models;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -11,124 +9,54 @@ import java.time.LocalDateTime;
 public class Signalement {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_signalement")
     private Long idSignalement;
-    
+
     private BigDecimal surface;
-    
+
     @Column(nullable = false, precision = 15, scale = 6)
     private BigDecimal latitude;
-    
+
     @Column(nullable = false, precision = 15, scale = 6)
     private BigDecimal longitude;
-    
-    @CreationTimestamp
-    @Column(name = "date_ajoute", nullable = false, updatable = false)
-    private LocalDateTime dateAjoute;
-    
+
+    @Column(nullable = false)
+    private LocalDateTime dateAjoute = LocalDateTime.now();
+
     @ManyToOne
     @JoinColumn(name = "id_lieux")
-    private Lieu lieu;
-    
-    @Column(name = "id_user", nullable = false)
+    private Lieux lieux;
+
+    @Column(nullable = false)
     private String idUser;
-    
-    @Column(name = "type_probleme", length = 50)
+
+    @Column(name = "type_probleme", columnDefinition = "VARCHAR(50)")
     private String typeProbleme;
-    
-    @Column(length = 20)
+
+    @Column(columnDefinition = "VARCHAR(20) DEFAULT 'non traité'")
     private String statut = "non traité";
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    
-    // Constructeurs
-    public Signalement() {}
-    
-    public Signalement(BigDecimal latitude, BigDecimal longitude, String idUser) {
-        this.latitude = latitude;
-        this.longitude = longitude;
-        this.idUser = idUser;
-    }
-    
-    // Getters et Setters
-    public Long getIdSignalement() {
-        return idSignalement;
-    }
-    
-    public void setIdSignalement(Long idSignalement) {
-        this.idSignalement = idSignalement;
-    }
-    
-    public BigDecimal getSurface() {
-        return surface;
-    }
-    
-    public void setSurface(BigDecimal surface) {
-        this.surface = surface;
-    }
-    
-    public BigDecimal getLatitude() {
-        return latitude;
-    }
-    
-    public void setLatitude(BigDecimal latitude) {
-        this.latitude = latitude;
-    }
-    
-    public BigDecimal getLongitude() {
-        return longitude;
-    }
-    
-    public void setLongitude(BigDecimal longitude) {
-        this.longitude = longitude;
-    }
-    
-    public LocalDateTime getDateAjoute() {
-        return dateAjoute;
-    }
-    
-    public void setDateAjoute(LocalDateTime dateAjoute) {
-        this.dateAjoute = dateAjoute;
-    }
-    
-    public Lieu getLieu() {
-        return lieu;
-    }
-    
-    public void setLieu(Lieu lieu) {
-        this.lieu = lieu;
-    }
-    
-    public String getIdUser() {
-        return idUser;
-    }
-    
-    public void setIdUser(String idUser) {
-        this.idUser = idUser;
-    }
-    
-    public String getTypeProbleme() {
-        return typeProbleme;
-    }
-    
-    public void setTypeProbleme(String typeProbleme) {
-        this.typeProbleme = typeProbleme;
-    }
-    
-    public String getStatut() {
-        return statut;
-    }
-    
-    public void setStatut(String statut) {
-        this.statut = statut;
-    }
-    
-    public String getDescription() {
-        return description;
-    }
-    
-    public void setDescription(String description) {
-        this.description = description;
-    }
+
+    // Getters and setters
+    public Long getIdSignalement() { return idSignalement; }
+    public void setIdSignalement(Long idSignalement) { this.idSignalement = idSignalement; }
+    public BigDecimal getSurface() { return surface; }
+    public void setSurface(BigDecimal surface) { this.surface = surface; }
+    public BigDecimal getLatitude() { return latitude; }
+    public void setLatitude(BigDecimal latitude) { this.latitude = latitude; }
+    public BigDecimal getLongitude() { return longitude; }
+    public void setLongitude(BigDecimal longitude) { this.longitude = longitude; }
+    public LocalDateTime getDateAjoute() { return dateAjoute; }
+    public void setDateAjoute(LocalDateTime dateAjoute) { this.dateAjoute = dateAjoute; }
+    public Lieux getLieux() { return lieux; }
+    public void setLieux(Lieux lieux) { this.lieux = lieux; }
+    public String getIdUser() { return idUser; }
+    public void setIdUser(String idUser) { this.idUser = idUser; }
+    public String getTypeProbleme() { return typeProbleme; }
+    public void setTypeProbleme(String typeProbleme) { this.typeProbleme = typeProbleme; }
+    public String getStatut() { return statut; }
+    public void setStatut(String statut) { this.statut = statut; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 }

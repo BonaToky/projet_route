@@ -10,20 +10,9 @@ services:
     depends_on:
       - postgres
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/projet_route
-      SPRING_DATASOURCE_USERNAME: toky
-      SPRING_DATASOURCE_PASSWORD: toky
-
-  frontend:
-    build:
-      context: ./frontend-react    # <-- dossier React corrigé
-    container_name: react_route
-    ports:
-      - "5173:5173"              # Port par défaut du dev server Vite
-    depends_on:
-      - backend
-    working_dir: /app
-    command: npm run dev         # Lance Vite en mode développement
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: route
+      POSTGRES_DB: route
     volumes:
       - ./frontend-react:/app    # Pour hot-reload : modifs reflétées automatiquement
 
@@ -37,8 +26,20 @@ services:
       POSTGRES_PASSWORD: toky
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+  app:
+    build:
+      context: ./route
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+  carte:
+    build:
+      context: ./carte
+    ports:
+      - "3000:8080"
+  web:
+    build:
+      context: ./web
+    ports:
+      - "5173:5173"
