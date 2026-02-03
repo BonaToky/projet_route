@@ -80,8 +80,9 @@ CREATE TABLE signalement (
    Id_Lieux INT, -- référence vers un lieu connu (optionnel)
    Id_User VARCHAR(255) NOT NULL, -- identifiant de l'utilisateur Firebase
    type_probleme VARCHAR(50), -- ex: nid-de-poule, route inondée  
-   statut VARCHAR(20) DEFAULT 'non traité', -- suivi: 'non traité', 'en cours', 'résolu'
+   statut VARCHAR(20) DEFAULT 'nouveau', -- suivi: 'nouveau', 'en cours', 'termine'
    description TEXT, -- description de l'état ou du problème
+   firestore_id VARCHAR(255) UNIQUE, -- ID du document Firestore
    FOREIGN KEY(Id_Lieux) REFERENCES Lieux(Id_Lieux)
 );
 
@@ -95,9 +96,20 @@ CREATE TABLE travaux (
    budget DECIMAL(20,2),
    date_debut_travaux DATE,
    date_fin_travaux DATE,
-   avancement DECIMAL(5,2) DEFAULT 0.00, -- pourcentage d'avancement
+   avancement DECIMAL(5,2) DEFAULT 0.00, -- pourcentage d'avancement(0 ou 50 ou 100%)
+   firestore_id VARCHAR(255) UNIQUE, -- ID du document Firestore
    FOREIGN KEY (id_entreprise) REFERENCES entreprise(id_entreprise),
    FOREIGN KEY (id_signalement) REFERENCES signalement(Id_signalement)
+);
+
+CREATE TABLE historiques_travaux (
+   id SERIAL PRIMARY KEY,
+   id_travaux INT,
+   date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   avancement DECIMAL(5,2),
+   commentaire TEXT,
+   firestore_id VARCHAR(255) UNIQUE, -- ID du document Firestore
+   FOREIGN KEY (id_travaux) REFERENCES travaux(id)
 );
 
 -- Supprimer la colonne statut si elle existe (migration)

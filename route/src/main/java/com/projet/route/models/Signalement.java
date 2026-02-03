@@ -38,6 +38,9 @@ public class Signalement {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "firestore_id", unique = true)
+    private String firestoreId;
+
     // Getters and setters
     public Long getIdSignalement() { return idSignalement; }
     public void setIdSignalement(Long idSignalement) { this.idSignalement = idSignalement; }
@@ -59,4 +62,6 @@ public class Signalement {
     public void setStatut(String statut) { this.statut = statut; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getFirestoreId() { return firestoreId; }
+    public void setFirestoreId(String firestoreId) { this.firestoreId = firestoreId; }
 }

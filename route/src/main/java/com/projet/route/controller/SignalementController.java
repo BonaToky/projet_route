@@ -2,12 +2,15 @@ package com.projet.route.controller;
 
 import com.projet.route.models.Signalement;
 import com.projet.route.repository.SignalementRepository;
+import com.projet.route.service.FirebaseSyncService;
+import com.projet.route.service.TravauxService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/signalements")
@@ -17,12 +20,30 @@ public class SignalementController {
     @Autowired
     private SignalementRepository signalementRepository;
 
+    @Autowired
+    private FirebaseSyncService firebaseSyncService;
+
+    @Autowired
+    private TravauxService travauxService;
+
     @GetMapping
     public List<Signalement> getAllSignalements() {
         return signalementRepository.findAll();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/sync")
+    public ResponseEntity<String> syncSignalements() {
+        try {
+            firebaseSyncService.syncSignalementsToLocal();
+            return ResponseEntity.ok("Synchronisation terminée");
+        } catch (Exception e) {
+            System.err.println("Error in syncSignalements: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Erreur lors de la synchronisation: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<Signalement> getSignalementById(@PathVariable Long id) {
         Optional<Signalement> signalement = signalementRepository.findById(id);
         if (signalement.isPresent()) {
@@ -32,39 +53,31 @@ public class SignalementController {
         }
     }
 
-    @PostMapping
-    public Signalement createSignalement(@RequestBody Signalement signalement) {
-        return signalementRepository.save(signalement);
-    }
+    @PutMapping("/{id}/statut")
+    public ResponseEntity<String> updateStatut(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            String statut = body.get("statut");
+            if (statut == null || (!statut.equals("nouveau") && !statut.equals("en cours") && !statut.equals("terminé"))) {
+                return ResponseEntity.badRequest().body("Statut invalide. Doit être 'nouveau', 'en cours' ou 'terminé'");
+            }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Signalement> updateSignalement(@PathVariable Long id, @RequestBody Signalement signalementDetails) {
-        Optional<Signalement> optionalSignalement = signalementRepository.findById(id);
-        if (optionalSignalement.isPresent()) {
-            Signalement signalement = optionalSignalement.get();
-            signalement.setSurface(signalementDetails.getSurface());
-            signalement.setLatitude(signalementDetails.getLatitude());
-            signalement.setLongitude(signalementDetails.getLongitude());
-            signalement.setTypeProbleme(signalementDetails.getTypeProbleme());
-            signalement.setStatut(signalementDetails.getStatut());
-            signalement.setDescription(signalementDetails.getDescription());
-            signalement.setLieux(signalementDetails.getLieux());
+            Optional<Signalement> signalementOpt = signalementRepository.findById(id);
+            if (!signalementOpt.isPresent()) {
+                return ResponseEntity.notFound().build();
+            }
 
-            Signalement updatedSignalement = signalementRepository.save(signalement);
-            return ResponseEntity.ok(updatedSignalement);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+            Signalement signalement = signalementOpt.get();
+            signalement.setStatut(statut);
+            signalementRepository.save(signalement);
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSignalement(@PathVariable Long id) {
-        Optional<Signalement> signalement = signalementRepository.findById(id);
-        if (signalement.isPresent()) {
-            signalementRepository.delete(signalement.get());
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
+            // Mettre à jour automatiquement l'avancement des travaux
+            travauxService.updateAvancementBasedOnStatut(id, statut);
+
+            return ResponseEntity.ok("Statut mis à jour");
+        } catch (Exception e) {
+            System.err.println("Error updating statut: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Erreur: " + e.getMessage());
         }
     }
 }

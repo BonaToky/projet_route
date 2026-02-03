@@ -470,37 +470,107 @@ const ManagerDashboard = () => {
     if (!editingReport) return;
 
     try {
+      // Mettre à jour dans Firestore
       await updateDoc(doc(db, 'signalements', editingReport.id), {
         surface: parseFloat(editSurface),
         description: editDescription,
         statut: editStatut,
       });
 
+      // Calculer automatiquement l'avancement basé sur le statut
+      let avancementValue = 0;
+      if (editStatut === 'nouveau') avancementValue = 0;
+      else if (editStatut === 'en cours') avancementValue = 50;
+      else if (editStatut === 'terminé') avancementValue = 100;
+
       if (editEntreprise && editBudget && editDateDebut && editDateFin) {
-        const avancementValue = editAvancement ? parseFloat(editAvancement) : 0;
-        if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
-          alert('L\'avancement doit être un nombre entre 0 et 100');
-          return;
-        }
+        const travauxData = {
+          signalement: { idSignalement: parseInt(editingReport.id) },
+          entreprise: { idEntreprise: parseInt(editEntreprise) },
+          budget: parseFloat(editBudget),
+          dateDebutTravaux: editDateDebut,
+          dateFinTravaux: editDateFin,
+          avancement: avancementValue,
+        };
 
         if (editingReport.travaux) {
-          const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
-          await updateDoc(travauxRef, {
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
+          // Update existing travaux in local DB
+          const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(travauxData),
           });
+          if (!localUpdateResponse.ok) {
+            console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
+          }
+
+          // Update in Firestore
+          try {
+            const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
+            await updateDoc(travauxRef, {
+              budget: parseFloat(editBudget),
+              id_entreprise: parseInt(editEntreprise),
+              date_debut_travaux: new Date(editDateDebut),
+              date_fin_travaux: new Date(editDateFin),
+              avancement: avancementValue,
+            });
+
+            // Créer l'historique dans Firestore
+            const historiqueCommentaire = 
+              editStatut === 'nouveau' ? 'Travaux non commencés' :
+              editStatut === 'en cours' ? 'Travaux en cours' :
+              'Travaux terminés';
+            
+            await addDoc(collection(db, 'historiques_travaux'), {
+              id_travaux: editingReport.travaux.id,
+              date_modification: new Date(),
+              avancement: avancementValue,
+              commentaire: historiqueCommentaire,
+            });
+          } catch (firestoreError) {
+            console.warn('Failed to update travaux in Firestore:', firestoreError);
+          }
         } else {
-          await addDoc(collection(db, 'travaux'), {
-            id_signalement: editingReport.id,
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
+          // Create new travaux in local DB
+          const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(travauxData),
           });
+          if (!localCreateResponse.ok) {
+            console.warn('Failed to create travaux in local database:', await localCreateResponse.text());
+          }
+
+          // Create in Firestore
+          try {
+            const newTravauxDoc = await addDoc(collection(db, 'travaux'), {
+              id_signalement: editingReport.id,
+              budget: parseFloat(editBudget),
+              id_entreprise: parseInt(editEntreprise),
+              date_debut_travaux: new Date(editDateDebut),
+              date_fin_travaux: new Date(editDateFin),
+              avancement: avancementValue,
+            });
+
+            // Créer l'historique dans Firestore
+            const historiqueCommentaire = 
+              editStatut === 'nouveau' ? 'Travaux non commencés' :
+              editStatut === 'en cours' ? 'Travaux en cours' :
+              'Travaux terminés';
+            
+            await addDoc(collection(db, 'historiques_travaux'), {
+              id_travaux: newTravauxDoc.id,
+              date_modification: new Date(),
+              avancement: avancementValue,
+              commentaire: historiqueCommentaire,
+            });
+          } catch (firestoreError) {
+            console.warn('Failed to create travaux in Firestore:', firestoreError);
+          }
         }
       }
 
@@ -524,21 +594,64 @@ const ManagerDashboard = () => {
   const saveTravaux = async () => {
     if (!selectedReport) return;
 
-    const avancementValue = parseFloat(avancement);
-    if (isNaN(avancementValue) || avancementValue < 0 || avancementValue > 100) {
-      alert('L\'avancement doit être un nombre entre 0 et 100');
-      return;
-    }
+    // Calculer l'avancement automatiquement basé sur le statut du signalement
+    let avancementValue = 0;
+    if (selectedReport.statut === 'nouveau') avancementValue = 0;
+    else if (selectedReport.statut === 'en cours') avancementValue = 50;
+    else if (selectedReport.statut === 'terminé') avancementValue = 100;
+
+    const commentaire = 
+      selectedReport.statut === 'nouveau' ? 'Travaux non commencés' :
+      selectedReport.statut === 'en cours' ? 'Travaux en cours' :
+      'Travaux terminés';
 
     try {
-      await addDoc(collection(db, 'travaux'), {
-        id_signalement: selectedReport.id,
+      // First save to local Postgres database
+      const travauxData = {
+        signalement: { idSignalement: parseInt(selectedReport.id) },
+        entreprise: { idEntreprise: parseInt(entreprise) },
         budget: parseFloat(budget),
-        id_entreprise: parseInt(entreprise),
-        date_debut_travaux: new Date(dateDebut),
-        date_fin_travaux: new Date(dateFin),
+        dateDebutTravaux: dateDebut,
+        dateFinTravaux: dateFin,
         avancement: avancementValue,
+      };
+
+      const localResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(travauxData),
       });
+
+      if (!localResponse.ok) {
+        console.warn('Failed to save to local database:', await localResponse.text());
+      }
+
+      // Then try to save to Firestore
+      let travauxId = null;
+      try {
+        const travauxDoc = await addDoc(collection(db, 'travaux'), {
+          id_signalement: selectedReport.id,
+          budget: parseFloat(budget),
+          id_entreprise: parseInt(entreprise),
+          date_debut_travaux: new Date(dateDebut),
+          date_fin_travaux: new Date(dateFin),
+          avancement: avancementValue,
+        });
+        travauxId = travauxDoc.id;
+
+        // Créer l'historique dans Firestore
+        await addDoc(collection(db, 'historiques_travaux'), {
+          id_travaux: travauxId,
+          date_modification: new Date(),
+          avancement: avancementValue,
+          commentaire: commentaire,
+        });
+      } catch (firestoreError) {
+        console.warn('Failed to save to Firestore, but saved locally:', firestoreError);
+      }
+
       alert('Travaux ajoutés avec succès');
       setSelectedReport(null);
       setBudget('');
@@ -561,15 +674,33 @@ const ManagerDashboard = () => {
 
   const getStatusBadge = (statut: string) => {
     switch (statut) {
-      case 'non traité':
-        return <span className="status-badge status-pending">⏳ Non traité</span>;
+      case 'nouveau':
+        return <span className="status-badge status-pending">⏳ Nouveau</span>;
       case 'en cours':
         return <span className="status-badge status-progress">🔄 En cours</span>;
-      case 'résolu':
-        return <span className="status-badge status-resolved">✅ Résolu</span>;
+      case 'terminé':
+        return <span className="status-badge status-resolved">✅ Terminé</span>;
       default:
         return <span className="status-badge">{statut}</span>;
     }
+  };
+
+  const calculateAverageDelay = () => {
+    const completedReports = reports.filter(r => r.statut === 'terminé' && r.travaux);
+    if (completedReports.length === 0) return 0;
+    
+    const totalDays = completedReports.reduce((sum, report) => {
+      if (report.travaux && report.travaux.date_debut_travaux && report.travaux.date_fin_travaux) {
+        const start = new Date(report.travaux.date_debut_travaux);
+        const end = new Date(report.travaux.date_fin_travaux);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return sum + diffDays;
+      }
+      return sum;
+    }, 0);
+    
+    return Math.round(totalDays / completedReports.length);
   };
 
   const getProblemTypeLabel = (type?: string) => {
@@ -827,8 +958,8 @@ const ManagerDashboard = () => {
               <div className="stat-card">
                 <div className="stat-icon yellow">⏳</div>
                 <div className="stat-info">
-                  <div className="stat-label">Non traités</div>
-                  <div className="stat-value">{reports.filter(r => r.statut === 'non traité').length}</div>
+                  <div className="stat-label">Nouveaux</div>
+                  <div className="stat-value">{reports.filter(r => r.statut === 'nouveau').length}</div>
                 </div>
               </div>
               <div className="stat-card">
@@ -841,8 +972,15 @@ const ManagerDashboard = () => {
               <div className="stat-card">
                 <div className="stat-icon red">✅</div>
                 <div className="stat-info">
-                  <div className="stat-label">Résolus</div>
-                  <div className="stat-value">{reports.filter(r => r.statut === 'résolu').length}</div>
+                  <div className="stat-label">Terminés</div>
+                  <div className="stat-value">{reports.filter(r => r.statut === 'terminé').length}</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon orange">📊</div>
+                <div className="stat-info">
+                  <div className="stat-label">Délai moyen</div>
+                  <div className="stat-value">{calculateAverageDelay()} jours</div>
                 </div>
               </div>
             </div>
@@ -873,7 +1011,7 @@ const ManagerDashboard = () => {
                         <td>
                           {report.travaux ? (
                             <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                              <div style={{flex: 1, height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden'}}>
+                              <div style={{flex: 1, height: '6px', background: 'rgba(0,0,0,0.1)', borderRadius: '3px', overflow: 'hidden'}}>
                                 <div style={{width: `${report.travaux.avancement}%`, height: '100%', background: 'linear-gradient(90deg, #8b5cf6, #a855f7)', borderRadius: '3px'}}></div>
                               </div>
                               <span style={{fontSize: '12px', color: 'rgba(255,255,255,0.6)'}}>{report.travaux.avancement}%</span>
@@ -1090,10 +1228,9 @@ const ManagerDashboard = () => {
                 <label className="form-label">Date Fin</label>
                 <input type="date" className="form-input" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Avancement (%)</label>
-                <input type="number" className="form-input" value={avancement} onChange={(e) => setAvancement(e.target.value)} min="0" max="100" />
-              </div>
+              <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '12px'}}>
+                💡 L'avancement est calculé automatiquement selon le statut du signalement
+              </p>
               <div className="modal-footer">
                 <button className="btn btn-secondary" onClick={() => setSelectedReport(null)}>Annuler</button>
                 <button className="btn btn-primary" onClick={saveTravaux}>Sauvegarder</button>
@@ -1125,9 +1262,9 @@ const ManagerDashboard = () => {
               <div className="form-group">
                 <label className="form-label">Statut</label>
                 <select className="form-select" value={editStatut} onChange={(e) => setEditStatut(e.target.value)}>
-                  <option value="non traité">Non traité</option>
+                  <option value="nouveau">Nouveau</option>
                   <option value="en cours">En cours</option>
-                  <option value="résolu">Résolu</option>
+                  <option value="terminé">Terminé</option>
                 </select>
               </div>
               <div className="form-group">
@@ -1151,10 +1288,9 @@ const ManagerDashboard = () => {
                 <label className="form-label">Date Fin Travaux</label>
                 <input type="date" className="form-input" value={editDateFin} onChange={(e) => setEditDateFin(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Avancement (%)</label>
-                <input type="number" className="form-input" value={editAvancement} onChange={(e) => setEditAvancement(e.target.value)} min="0" max="100" />
-              </div>
+              <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '12px'}}>
+                💡 L'avancement est calculé automatiquement selon le statut : Nouveau = 0%, En cours = 50%, Terminé = 100%
+              </p>
               <div className="modal-footer">
                 <button className="btn btn-secondary" onClick={() => setEditingReport(null)}>Annuler</button>
                 <button className="btn btn-primary" onClick={saveReportChanges}>Sauvegarder</button>
