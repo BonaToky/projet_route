@@ -195,7 +195,7 @@ const getEnCoursCount = computed(() => {
 });
 
 const getTraiteCount = computed(() => {
-  return reports.value.filter(r => r.statut === 'traité' || (r.travaux && r.travaux.avancement >= 100)).length;
+  return reports.value.filter(r => r.statut === 'terminé' || (r.travaux && r.travaux.avancement >= 100)).length;
 });
 
 onMounted(() => {
@@ -291,8 +291,8 @@ const getIconClass = (type?: string) => {
 };
 
 const getStatusClass = (statut?: string) => {
-  if (!statut || statut === 'non traité') return 'pending';
-  if (statut === 'traité') return 'completed';
+  if (!statut || statut === 'nouveau') return 'pending';
+  if (statut === 'terminé') return 'completed';
   return 'in-progress';
 };
 
