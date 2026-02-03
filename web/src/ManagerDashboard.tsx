@@ -384,6 +384,14 @@ const ManagerDashboard = () => {
 
   const syncReports = async () => {
     try {
+      // First sync to local Postgres database
+      const syncResponse = await authenticatedFetch('http://localhost:8080/api/signalements/sync', {
+        method: 'GET'
+      });
+      if (!syncResponse.ok) {
+        console.warn('Failed to sync to local database:', await syncResponse.text());
+      }
+
       const querySnapshot = await getDocs(collection(db, 'signalements'));
       const reportsData: Report[] = [];
       querySnapshot.forEach((doc) => {
@@ -483,24 +491,67 @@ const ManagerDashboard = () => {
           return;
         }
 
+        const travauxData = {
+          signalement: { idSignalement: parseInt(editingReport.id) },
+          entreprise: { idEntreprise: parseInt(editEntreprise) },
+          budget: parseFloat(editBudget),
+          dateDebutTravaux: editDateDebut,
+          dateFinTravaux: editDateFin,
+          avancement: avancementValue,
+        };
+
         if (editingReport.travaux) {
-          const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
-          await updateDoc(travauxRef, {
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
+          // Update existing travaux in local DB
+          const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(travauxData),
           });
+          if (!localUpdateResponse.ok) {
+            console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
+          }
+
+          // Update in Firestore
+          try {
+            const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
+            await updateDoc(travauxRef, {
+              budget: parseFloat(editBudget),
+              id_entreprise: parseInt(editEntreprise),
+              date_debut_travaux: new Date(editDateDebut),
+              date_fin_travaux: new Date(editDateFin),
+              avancement: avancementValue,
+            });
+          } catch (firestoreError) {
+            console.warn('Failed to update travaux in Firestore:', firestoreError);
+          }
         } else {
-          await addDoc(collection(db, 'travaux'), {
-            id_signalement: editingReport.id,
-            budget: parseFloat(editBudget),
-            id_entreprise: parseInt(editEntreprise),
-            date_debut_travaux: new Date(editDateDebut),
-            date_fin_travaux: new Date(editDateFin),
-            avancement: avancementValue,
+          // Create new travaux in local DB
+          const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(travauxData),
           });
+          if (!localCreateResponse.ok) {
+            console.warn('Failed to create travaux in local database:', await localCreateResponse.text());
+          }
+
+          // Create in Firestore
+          try {
+            await addDoc(collection(db, 'travaux'), {
+              id_signalement: editingReport.id,
+              budget: parseFloat(editBudget),
+              id_entreprise: parseInt(editEntreprise),
+              date_debut_travaux: new Date(editDateDebut),
+              date_fin_travaux: new Date(editDateFin),
+              avancement: avancementValue,
+            });
+          } catch (firestoreError) {
+            console.warn('Failed to create travaux in Firestore:', firestoreError);
+          }
         }
       }
 
@@ -531,14 +582,42 @@ const ManagerDashboard = () => {
     }
 
     try {
-      await addDoc(collection(db, 'travaux'), {
-        id_signalement: selectedReport.id,
+      // First save to local Postgres database
+      const travauxData = {
+        signalement: { idSignalement: parseInt(selectedReport.id) },
+        entreprise: { idEntreprise: parseInt(entreprise) },
         budget: parseFloat(budget),
-        id_entreprise: parseInt(entreprise),
-        date_debut_travaux: new Date(dateDebut),
-        date_fin_travaux: new Date(dateFin),
+        dateDebutTravaux: dateDebut,
+        dateFinTravaux: dateFin,
         avancement: avancementValue,
+      };
+
+      const localResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(travauxData),
       });
+
+      if (!localResponse.ok) {
+        console.warn('Failed to save to local database:', await localResponse.text());
+      }
+
+      // Then try to save to Firestore
+      try {
+        await addDoc(collection(db, 'travaux'), {
+          id_signalement: selectedReport.id,
+          budget: parseFloat(budget),
+          id_entreprise: parseInt(entreprise),
+          date_debut_travaux: new Date(dateDebut),
+          date_fin_travaux: new Date(dateFin),
+          avancement: avancementValue,
+        });
+      } catch (firestoreError) {
+        console.warn('Failed to save to Firestore, but saved locally:', firestoreError);
+      }
+
       alert('Travaux ajoutés avec succès');
       setSelectedReport(null);
       setBudget('');

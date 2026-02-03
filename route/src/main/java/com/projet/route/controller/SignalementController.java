@@ -2,6 +2,7 @@ package com.projet.route.controller;
 
 import com.projet.route.models.Signalement;
 import com.projet.route.repository.SignalementRepository;
+import com.projet.route.service.FirebaseSyncService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,52 +18,31 @@ public class SignalementController {
     @Autowired
     private SignalementRepository signalementRepository;
 
+    @Autowired
+    private FirebaseSyncService firebaseSyncService;
+
     @GetMapping
     public List<Signalement> getAllSignalements() {
         return signalementRepository.findAll();
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/sync")
+    public ResponseEntity<String> syncSignalements() {
+        try {
+            firebaseSyncService.syncSignalementsToLocal();
+            return ResponseEntity.ok("Synchronisation terminée");
+        } catch (Exception e) {
+            System.err.println("Error in syncSignalements: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Erreur lors de la synchronisation: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id:\\d+}")
     public ResponseEntity<Signalement> getSignalementById(@PathVariable Long id) {
         Optional<Signalement> signalement = signalementRepository.findById(id);
         if (signalement.isPresent()) {
             return ResponseEntity.ok(signalement.get());
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @PostMapping
-    public Signalement createSignalement(@RequestBody Signalement signalement) {
-        return signalementRepository.save(signalement);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Signalement> updateSignalement(@PathVariable Long id, @RequestBody Signalement signalementDetails) {
-        Optional<Signalement> optionalSignalement = signalementRepository.findById(id);
-        if (optionalSignalement.isPresent()) {
-            Signalement signalement = optionalSignalement.get();
-            signalement.setSurface(signalementDetails.getSurface());
-            signalement.setLatitude(signalementDetails.getLatitude());
-            signalement.setLongitude(signalementDetails.getLongitude());
-            signalement.setTypeProbleme(signalementDetails.getTypeProbleme());
-            signalement.setStatut(signalementDetails.getStatut());
-            signalement.setDescription(signalementDetails.getDescription());
-            signalement.setLieux(signalementDetails.getLieux());
-
-            Signalement updatedSignalement = signalementRepository.save(signalement);
-            return ResponseEntity.ok(updatedSignalement);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSignalement(@PathVariable Long id) {
-        Optional<Signalement> signalement = signalementRepository.findById(id);
-        if (signalement.isPresent()) {
-            signalementRepository.delete(signalement.get());
-            return ResponseEntity.noContent().build();
         } else {
             return ResponseEntity.notFound().build();
         }

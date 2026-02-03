@@ -102,6 +102,14 @@ const VisitorDashboard = () => {
 
   const syncReports = async () => {
     try {
+      // First sync to local Postgres database
+      const syncResponse = await fetch('http://localhost:8080/api/signalements/sync', {
+        method: 'GET'
+      });
+      if (!syncResponse.ok) {
+        console.warn('Failed to sync to local database:', await syncResponse.text());
+      }
+
       const querySnapshot = await getDocs(collection(db, 'signalements'));
       const reportsData: Report[] = [];
       querySnapshot.forEach((doc) => {
