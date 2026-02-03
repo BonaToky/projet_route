@@ -119,12 +119,10 @@ const ManagerDashboard = () => {
   const [entreprise, setEntreprise] = useState('');
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
-  const [avancement, setAvancement] = useState('');
   const [currentView, setCurrentView] = useState<'map' | 'users' | 'reports' | 'config'>('map');
   const [editingReport, setEditingReport] = useState<Report | null>(null);
   const [editSurface, setEditSurface] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editAvancement, setEditAvancement] = useState('');
   const [editEntreprise, setEditEntreprise] = useState('');
   const [editBudget, setEditBudget] = useState('');
   const [editDateDebut, setEditDateDebut] = useState('');
@@ -445,13 +443,11 @@ const ManagerDashboard = () => {
       setEntreprise(report.travaux.id_entreprise.toString());
       setDateDebut(report.travaux.date_debut_travaux.toISOString().split('T')[0]);
       setDateFin(report.travaux.date_fin_travaux.toISOString().split('T')[0]);
-      setAvancement(report.travaux.avancement.toString());
     } else {
       setBudget('');
       setEntreprise('');
       setDateDebut(report.date_ajoute.toISOString().split('T')[0]);
       setDateFin('');
-      setAvancement('0');
     }
   };
 
@@ -583,7 +579,6 @@ const ManagerDashboard = () => {
       setEditBudget('');
       setEditDateDebut('');
       setEditDateFin('');
-      setEditAvancement('');
       syncReports();
     } catch (error) {
       console.error('Error updating report:', error);
@@ -658,7 +653,6 @@ const ManagerDashboard = () => {
       setEntreprise('');
       setDateDebut('');
       setDateFin('');
-      setAvancement('');
       syncReports();
     } catch (error) {
       console.error('Error saving travaux:', error);

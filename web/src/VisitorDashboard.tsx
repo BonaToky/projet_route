@@ -59,6 +59,7 @@ interface Report {
   description: string;
   date_ajoute: Date;
   statut: string;
+  photos?: string[];
   travaux?: {
     id: string;
     id_entreprise: number;
@@ -253,6 +254,18 @@ const VisitorDashboard = () => {
                       <span className="popup-label">Surface</span>
                       <span className="popup-value">{report.surface} m²</span>
                     </div>
+                    {report.photos && report.photos.length > 0 && (
+                      <div className="popup-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                        <span className="popup-label" style={{marginBottom: '8px'}}>Photos ({report.photos.length})</span>
+                        <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%'}}>
+                          {report.photos.map((photo, idx) => (
+                            <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" style={{display: 'block', width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', border: '2px solid rgba(59, 130, 246, 0.3)'}}>
+                              <img src={photo} alt={`Photo ${idx + 1}`} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {report.travaux && (
                       <>
                         <div className="popup-row">

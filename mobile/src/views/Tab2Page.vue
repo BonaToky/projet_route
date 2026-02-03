@@ -51,6 +51,27 @@
               <label>Description</label>
               <ion-textarea v-model="description" placeholder="Décrivez le problème" :rows="3" class="custom-textarea" />
             </div>
+            <div class="form-group">
+              <label>Photos ({{ photos.length }})</label>
+              <div class="photo-buttons">
+                <ion-button @click="takePhoto" fill="outline" class="photo-btn">
+                  <ion-icon :icon="camera" slot="start" />
+                  Appareil photo
+                </ion-button>
+                <ion-button @click="selectFromGallery" fill="outline" class="photo-btn">
+                  <ion-icon :icon="statsChart" slot="start" />
+                  Galerie
+                </ion-button>
+              </div>
+              <div class="photo-gallery" v-if="photos.length > 0">
+                <div v-for="(photo, index) in photos" :key="index" class="photo-item">
+                  <img :src="photo" alt="Photo" />
+                  <ion-button @click="removePhoto(index)" class="remove-photo-btn" fill="clear" size="small">
+                    <ion-icon :icon="trash" color="danger" />
+                  </ion-button>
+                </div>
+              </div>
+            </div>
             <ion-button expand="block" @click="submitReport" class="submit-btn">
               <ion-icon :icon="send" slot="start" />
               Envoyer le signalement
@@ -124,12 +145,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonInput, IonTextarea, IonToast, IonSelect, IonSelectOption, IonIcon } from '@ionic/vue';
-import { close, send, statsChart, refresh, cloudUpload } from 'ionicons/icons';
+import { close, send, statsChart, refresh, cloudUpload, camera, trash } from 'ionicons/icons';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
-import { db } from '@/firebase';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { db, storage } from '@/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
 
 // Custom icons for different problem types
 const createCustomIcon = (color: string, emoji: string) => {
@@ -194,6 +217,7 @@ const currentLatLng = ref<L.LatLng | null>(null);
 const allMarkers = ref<any[]>([]);
 const showRecapModal = ref(false);
 const recapData = ref({ count: 0, totalSurface: 0, averageAvancement: 0, totalBudget: 0 });
+const photos = ref<string[]>([]);
 
 onMounted(async () => {
   const user = localStorage.getItem('currentUser');
@@ -341,11 +365,54 @@ const closeModal = () => {
   description.value = '';
   surface.value = '';
   typeProbleme.value = '';
+  photos.value = [];
   if (marker && map) {
     map.removeLayer(marker as L.Layer);
     marker = null;
   }
   currentLatLng.value = null;
+};
+
+const takePhoto = async () => {
+  try {
+    const image = await Camera.getPhoto({
+      quality: 70,
+      allowEditing: false,
+      resultType: CameraResultType.DataUrl,
+      source: CameraSource.Camera
+    });
+    
+    if (image.dataUrl) {
+      photos.value.push(image.dataUrl);
+    }
+  } catch (error: any) {
+    console.error('Erreur lors de la prise de photo:', error);
+    toastMessage.value = 'Erreur lors de la prise de photo';
+    showToast.value = true;
+  }
+};
+
+const selectFromGallery = async () => {
+  try {
+    const image = await Camera.getPhoto({
+      quality: 70,
+      allowEditing: false,
+      resultType: CameraResultType.DataUrl,
+      source: CameraSource.Photos
+    });
+    
+    if (image.dataUrl) {
+      photos.value.push(image.dataUrl);
+    }
+  } catch (error: any) {
+    console.error('Erreur lors de la sélection:', error);
+    toastMessage.value = 'Erreur lors de la sélection de la photo';
+    showToast.value = true;
+  }
+};
+
+const removePhoto = (index: number) => {
+  photos.value.splice(index, 1);
 };
 
 const submitReport = async () => {
@@ -374,6 +441,19 @@ const submitReport = async () => {
     }
     const user = JSON.parse(userStr);
 
+    // Upload photos to Firebase Storage
+    const photoUrls: string[] = [];
+    for (let i = 0; i < photos.value.length; i++) {
+      try {
+        const photoRef = storageRef(storage, `signalements/${Date.now()}_${i}.jpg`);
+        await uploadString(photoRef, photos.value[i], 'data_url');
+        const url = await getDownloadURL(photoRef);
+        photoUrls.push(url);
+      } catch (error) {
+        console.error('Erreur upload photo:', error);
+      }
+    }
+
     await addDoc(collection(db, 'signalements'), {
       latitude: currentLatLng.value.lat,
       longitude: currentLatLng.value.lng,
@@ -382,7 +462,8 @@ const submitReport = async () => {
       type_probleme: typeProbleme.value,
       description: description.value,
       date_ajoute: new Date(),
-      statut: 'non traité'
+      statut: 'non traité',
+      photos: photoUrls
     });
 
     toastMessage.value = 'Signalement envoyé avec succès';
@@ -662,6 +743,55 @@ const loadRecapData = async () => {
   --color: white;
   margin-top: 8px;
   height: 48px;
+}
+
+.photo-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.photo-btn {
+  flex: 1;
+  --border-width: 1px;
+  --border-color: #1e3a5f;
+  --color: #1e3a5f;
+  --border-radius: 10px;
+  height: 42px;
+  font-size: 13px;
+}
+
+.photo-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.photo-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.photo-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-photo-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  --background: rgba(255, 255, 255, 0.9);
+  --border-radius: 50%;
+  --padding-start: 0;
+  --padding-end: 0;
 }
 </style>
 

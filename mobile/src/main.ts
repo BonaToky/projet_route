@@ -34,6 +34,11 @@ import '@ionic/vue/css/palettes/dark.system.css';
 /* Theme variables */
 import './theme/variables.css';
 
+/* PWA Elements for Camera support in browser */
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
+
+defineCustomElements(window);
+
 const app = createApp(App)
   .use(IonicVue)
   .use(router);
