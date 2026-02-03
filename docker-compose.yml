@@ -1,12 +1,29 @@
+version: "3.8"
+
 services:
-  db:
-    image: postgres:17.5
+  backend:
+    build:
+      context: ./route
+    container_name: spring_route
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: route
       POSTGRES_DB: route
     volumes:
-      - ./base.sql:/docker-entrypoint-initdb.d/base.sql
+      - ./frontend-react:/app    # Pour hot-reload : modifs reflétées automatiquement
+
+  postgres:
+    image: postgres:13
+    container_name: postgres_route
+    restart: always
+    environment:
+      POSTGRES_DB: projet_route
+      POSTGRES_USER: toky
+      POSTGRES_PASSWORD: toky
     ports:
       - "5432:5432"
   app:
