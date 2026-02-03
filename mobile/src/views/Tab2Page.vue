@@ -4,6 +4,10 @@
       <ion-toolbar class="custom-toolbar">
         <ion-title>Carte</ion-title>
         <ion-buttons slot="end">
+          <ion-button @click="syncLocalToFirestore" class="sync-btn">
+            <ion-icon :icon="cloudUpload" slot="start" />
+            Sync
+          </ion-button>
           <ion-button @click="openRecapModal" class="recap-btn">
             <ion-icon :icon="statsChart" slot="start" />
             Stats
@@ -120,7 +124,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonInput, IonTextarea, IonToast, IonSelect, IonSelectOption, IonIcon } from '@ionic/vue';
-import { close, send, statsChart, refresh } from 'ionicons/icons';
+import { close, send, statsChart, refresh, cloudUpload } from 'ionicons/icons';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
@@ -388,6 +392,77 @@ const submitReport = async () => {
   } catch (error: any) {
     console.error('Erreur lors de l\'envoi:', error);
     toastMessage.value = `Erreur lors de l'envoi: ${error.message || 'Connexion bloquée'}`;
+    showToast.value = true;
+  }
+};
+
+const syncLocalToFirestore = async () => {
+  try {
+    // Fetch travaux from local database
+    const response = await fetch('http://localhost:8080/api/travaux');
+    if (!response.ok) {
+      throw new Error('Failed to fetch local travaux');
+    }
+    const localTravaux = await response.json();
+
+    // Fetch existing travaux from Firestore
+    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
+    const firestoreTravauxIds = new Set();
+    travauxSnapshot.forEach((doc) => {
+      firestoreTravauxIds.add(doc.id);
+    });
+
+    // Sync travaux that are not in Firestore
+    for (const travail of localTravaux) {
+      if (!firestoreTravauxIds.has(travail.id.toString())) {
+        try {
+          await addDoc(collection(db, 'travaux'), {
+            id_signalement: travail.signalement?.idSignalement?.toString(),
+            id_entreprise: travail.entreprise?.idEntreprise?.toString(),
+            budget: travail.budget ? parseFloat(travail.budget) : null,
+            date_debut_travaux: travail.dateDebutTravaux ? new Date(travail.dateDebutTravaux) : null,
+            date_fin_travaux: travail.dateFinTravaux ? new Date(travail.dateFinTravaux) : null,
+            avancement: travail.avancement ? parseFloat(travail.avancement) : 0
+          });
+          console.log(`Synced travail ${travail.id} to Firestore`);
+        } catch (error) {
+          console.error(`Failed to sync travail ${travail.id}:`, error);
+        }
+      }
+    }
+
+    // Also sync historiques_travaux
+    const histResponse = await fetch('http://localhost:8080/api/historiques-travaux');
+    if (histResponse.ok) {
+      const localHistoriques = await histResponse.json();
+      const histSnapshot = await getDocs(collection(db, 'historiques_travaux'));
+      const firestoreHistIds = new Set();
+      histSnapshot.forEach((doc) => {
+        firestoreHistIds.add(doc.id);
+      });
+
+      for (const hist of localHistoriques) {
+        if (!firestoreHistIds.has(hist.id.toString())) {
+          try {
+            await addDoc(collection(db, 'historiques_travaux'), {
+              id_travaux: hist.travaux?.id?.toString(),
+              date_modification: hist.dateModification ? new Date(hist.dateModification) : new Date(),
+              avancement: hist.avancement ? parseFloat(hist.avancement) : null,
+              commentaire: hist.commentaire || ''
+            });
+            console.log(`Synced historique ${hist.id} to Firestore`);
+          } catch (error) {
+            console.error(`Failed to sync historique ${hist.id}:`, error);
+          }
+        }
+      }
+    }
+
+    toastMessage.value = 'Synchronisation terminée';
+    showToast.value = true;
+  } catch (error: any) {
+    console.error('Erreur lors de la synchronisation:', error);
+    toastMessage.value = `Erreur de synchronisation: ${error.message || 'Connexion bloquée'}`;
     showToast.value = true;
   }
 };
