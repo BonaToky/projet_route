@@ -105,7 +105,7 @@ CREATE TABLE travaux (
 CREATE TABLE historiques_travaux (
    id SERIAL PRIMARY KEY,
    id_travaux INT,
-   date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   date_modification TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
    avancement DECIMAL(5,2),
    commentaire TEXT,
    firestore_id VARCHAR(255) UNIQUE, -- ID du document Firestore

@@ -1,5 +1,14 @@
 <template>
   <ion-page>
+    <ion-header class="ion-no-border">
+      <ion-toolbar style="--background: transparent;">
+        <ion-buttons slot="end">
+          <ion-button @click="goToSettings" style="--color: white;">
+            <ion-icon :icon="settings" />
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
     <ion-content :fullscreen="true" class="login-page">
       <div class="login-container">
         <div class="gradient-orb orb-1"></div>
@@ -67,11 +76,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { IonPage, IonContent, IonInput, IonButton, IonToast, IonIcon, IonSpinner } from '@ionic/vue';
-import { mail, lockClosed, arrowForward, layers } from 'ionicons/icons';
+import { IonPage, IonHeader, IonToolbar, IonButtons, IonContent, IonInput, IonButton, IonToast, IonIcon, IonSpinner } from '@ionic/vue';
+import { mail, lockClosed, arrowForward, layers, settings } from 'ionicons/icons';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
+import { getApiBaseUrl } from '@/config/api';
 
 const router = useRouter();
 const loginEmail = ref('');
@@ -80,6 +90,10 @@ const showToast = ref(false);
 const toastMessage = ref('');
 const loginAttempts = ref(0);
 const isLoading = ref(false);
+
+const goToSettings = () => {
+  router.push('/tabs/settings');
+};
 
 onMounted(() => {
   const user = localStorage.getItem('currentUser');
@@ -96,7 +110,8 @@ onMounted(() => {
 
 const reportFailedLogin = async (email: string) => {
   try {
-    const response = await fetch('http://localhost:8080/api/auth/report-failed-login', {
+    const apiUrl = getApiBaseUrl();
+    const response = await fetch(`${apiUrl}/auth/report-failed-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -145,7 +160,8 @@ const login = async () => {
     }
     
     try {
-      const checkBlockResponse = await fetch('http://localhost:8080/api/auth/check-blocked', {
+      const apiUrl = getApiBaseUrl();
+      const checkBlockResponse = await fetch(`${apiUrl}/auth/check-blocked`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail.value }),
@@ -167,7 +183,8 @@ const login = async () => {
     
     let sessionDurationMinutes = 60;
     try {
-      const paramsResponse = await fetch('http://localhost:8080/api/auth/params');
+      const apiUrl = getApiBaseUrl();
+      const paramsResponse = await fetch(`${apiUrl}/auth/params`);
       if (paramsResponse.ok) {
         const params = await paramsResponse.json();
         const sessionParam = params.find((p: any) => p.cle === 'duree_session_minutes');
@@ -188,7 +205,8 @@ const login = async () => {
     };
     
     try {
-      await fetch('http://localhost:8080/api/auth/mobile-login', {
+      const apiUrl = getApiBaseUrl();
+      await fetch(`${apiUrl}/auth/mobile-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

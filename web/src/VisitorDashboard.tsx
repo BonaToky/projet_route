@@ -117,6 +117,7 @@ const VisitorDashboard = () => {
           description: data.description,
           date_ajoute: data.date_ajoute.toDate(),
           statut: data.statut,
+          photos: data.photos || [],
         });
       });
 
@@ -255,13 +256,13 @@ const VisitorDashboard = () => {
                       <span className="popup-value">{report.surface} m²</span>
                     </div>
                     {report.photos && report.photos.length > 0 && (
-                      <div className="popup-row" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
-                        <span className="popup-label" style={{marginBottom: '8px'}}>Photos ({report.photos.length})</span>
-                        <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%'}}>
+                      <div className="popup-row" style={{flexDirection: 'column', alignItems: 'flex-start', gap: '8px'}}>
+                        <span className="popup-label">Photos ({report.photos.length})</span>
+                        <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', width: '100%'}}>
                           {report.photos.map((photo, idx) => (
-                            <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" style={{display: 'block', width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', border: '2px solid rgba(59, 130, 246, 0.3)'}}>
+                            <div key={idx} style={{width: '100%', height: '100px', borderRadius: '8px', overflow: 'hidden', border: '2px solid rgba(59, 130, 246, 0.3)', cursor: 'pointer'}} onClick={() => window.open(photo, '_blank')}>
                               <img src={photo} alt={`Photo ${idx + 1}`} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
-                            </a>
+                            </div>
                           ))}
                         </div>
                       </div>

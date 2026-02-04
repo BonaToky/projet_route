@@ -4,6 +4,12 @@
       <ion-toolbar class="custom-toolbar">
         <ion-title>Carte</ion-title>
         <ion-buttons slot="end">
+          <ion-button @click="refreshMap" class="refresh-btn-header">
+            <ion-icon :icon="refresh" />
+          </ion-button>
+          <ion-button @click="goToSettings" class="settings-btn">
+            <ion-icon :icon="settings" />
+          </ion-button>
           <ion-button @click="syncLocalToFirestore" class="sync-btn">
             <ion-icon :icon="cloudUpload" slot="start" />
             Sync
@@ -145,14 +151,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonInput, IonTextarea, IonToast, IonSelect, IonSelectOption, IonIcon } from '@ionic/vue';
-import { close, send, statsChart, refresh, cloudUpload, camera, trash } from 'ionicons/icons';
+import { close, send, statsChart, refresh, cloudUpload, camera, trash, settings } from 'ionicons/icons';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { db, storage } from '@/firebase';
+import { db } from '@/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
-import { ref as storageRef, uploadString, getDownloadURL } from 'firebase/storage';
+import { getApiBaseUrl } from '@/config/api';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Custom icons for different problem types
 const createCustomIcon = (color: string, emoji: string) => {
@@ -229,9 +238,23 @@ onMounted(async () => {
   initMap();
 });
 
+const goToSettings = () => {
+  router.push('/tabs/settings');
+};
+
+const refreshMap = () => {
+  loadAllReports();
+  toastMessage.value = 'Carte actualisée';
+  showToast.value = true;
+};
+
 const initMap = async () => {
   try {
-    const position = await Geolocation.getCurrentPosition();
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    });
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
 
@@ -267,15 +290,50 @@ const initMap = async () => {
       currentLatLng.value = e.latlng;
       showModal.value = true;
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur de géolocalisation:', error);
-    toastMessage.value = 'Erreur de géolocalisation';
+    
+    // Utiliser Antananarivo par défaut si la géolocalisation échoue
+    toastMessage.value = 'GPS non disponible. Position par défaut: Antananarivo';
     showToast.value = true;
-    map = L.map('map').setView([-18.8792, 47.5079], 12);
+    
+    const defaultLat = -18.8792;
+    const defaultLng = 47.5079;
+    
+    map = L.map('map').setView([defaultLat, defaultLng], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap'
     }).addTo(map);
+    
+    // Ajouter un marqueur à la position par défaut
+    const defaultIcon = L.divIcon({
+      className: 'default-marker',
+      html: `<div style="
+        background: #ef4444;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
+      "></div>`,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+    
+    L.marker([defaultLat, defaultLng], { icon: defaultIcon })
+      .addTo(map)
+      .bindPopup('📍 Position par défaut (Antananarivo)');
+    
     loadAllReports();
+    
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      if (marker) {
+        map!.removeLayer(marker);
+      }
+      marker = L.marker(e.latlng).addTo(map!);
+      currentLatLng.value = e.latlng;
+      showModal.value = true;
+    });
   }
 };
 
@@ -360,6 +418,50 @@ const loadAllReports = async () => {
   }
 };
 
+const openSignalementModal = async () => {
+  try {
+    // Essayer d'obtenir la position GPS actuelle
+    const position = await Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 30000
+    });
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    
+    currentLatLng.value = L.latLng(lat, lng);
+    
+    if (marker && map) {
+      map.removeLayer(marker);
+    }
+    marker = L.marker([lat, lng]).addTo(map!);
+    
+    toastMessage.value = 'Position GPS obtenue';
+    showToast.value = true;
+    showModal.value = true;
+  } catch (error: any) {
+    console.warn('GPS non disponible, utilisation du centre de la carte:', error);
+    
+    // Si GPS échoue, utiliser le centre de la carte
+    if (map) {
+      const center = map.getCenter();
+      currentLatLng.value = center;
+      
+      if (marker) {
+        map.removeLayer(marker);
+      }
+      marker = L.marker([center.lat, center.lng]).addTo(map);
+      
+      toastMessage.value = 'Utilisation du centre de la carte';
+      showToast.value = true;
+      showModal.value = true;
+    } else {
+      toastMessage.value = 'Carte non initialisée';
+      showToast.value = true;
+    }
+  }
+};
+
 const closeModal = () => {
   showModal.value = false;
   description.value = '';
@@ -376,10 +478,12 @@ const closeModal = () => {
 const takePhoto = async () => {
   try {
     const image = await Camera.getPhoto({
-      quality: 70,
+      quality: 40,
       allowEditing: false,
       resultType: CameraResultType.DataUrl,
-      source: CameraSource.Camera
+      source: CameraSource.Camera,
+      width: 800,
+      height: 800
     });
     
     if (image.dataUrl) {
@@ -395,10 +499,12 @@ const takePhoto = async () => {
 const selectFromGallery = async () => {
   try {
     const image = await Camera.getPhoto({
-      quality: 70,
+      quality: 40,
       allowEditing: false,
       resultType: CameraResultType.DataUrl,
-      source: CameraSource.Photos
+      source: CameraSource.Photos,
+      width: 800,
+      height: 800
     });
     
     if (image.dataUrl) {
@@ -441,19 +547,7 @@ const submitReport = async () => {
     }
     const user = JSON.parse(userStr);
 
-    // Upload photos to Firebase Storage
-    const photoUrls: string[] = [];
-    for (let i = 0; i < photos.value.length; i++) {
-      try {
-        const photoRef = storageRef(storage, `signalements/${Date.now()}_${i}.jpg`);
-        await uploadString(photoRef, photos.value[i], 'data_url');
-        const url = await getDownloadURL(photoRef);
-        photoUrls.push(url);
-      } catch (error) {
-        console.error('Erreur upload photo:', error);
-      }
-    }
-
+    // Stocker les photos directement en base64 (pas besoin de Storage)
     await addDoc(collection(db, 'signalements'), {
       latitude: currentLatLng.value.lat,
       longitude: currentLatLng.value.lng,
@@ -463,7 +557,7 @@ const submitReport = async () => {
       description: description.value,
       date_ajoute: new Date(),
       statut: 'non traité',
-      photos: photoUrls
+      photos: photos.value // Stocker les base64 directement
     });
 
     toastMessage.value = 'Signalement envoyé avec succès';
@@ -480,7 +574,8 @@ const submitReport = async () => {
 const syncLocalToFirestore = async () => {
   try {
     // Fetch travaux from local database
-    const response = await fetch('http://localhost:8080/api/travaux');
+    const apiUrl = getApiBaseUrl();
+    const response = await fetch(`${apiUrl}/travaux`);
     if (!response.ok) {
       throw new Error('Failed to fetch local travaux');
     }
@@ -513,7 +608,7 @@ const syncLocalToFirestore = async () => {
     }
 
     // Also sync historiques_travaux
-    const histResponse = await fetch('http://localhost:8080/api/historiques-travaux');
+    const histResponse = await fetch(`${apiUrl}/historiques-travaux`);
     if (histResponse.ok) {
       const localHistoriques = await histResponse.json();
       const histSnapshot = await getDocs(collection(db, 'historiques_travaux'));
