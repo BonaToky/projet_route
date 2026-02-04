@@ -81,8 +81,7 @@ import { mail, lockClosed, arrowForward, layers, settings } from 'ionicons/icons
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
-import { getApiBaseUrl } from '@/config/api';
-
+import { getApiBaseUrl } from '@/config/api';import { initializeNotifications } from '../services/notificationService';
 const router = useRouter();
 const loginEmail = ref('');
 const loginPassword = ref('');
@@ -221,6 +220,14 @@ const login = async () => {
     
     localStorage.setItem('currentUser', JSON.stringify(user));
     startSessionCheck();
+    
+    // Initialiser les notifications après connexion réussie
+    try {
+      await initializeNotifications(userDoc.id);
+      console.log('Notifications initialisées pour l\'utilisateur:', userDoc.id);
+    } catch (error) {
+      console.error('Erreur lors de l\'initialisation des notifications:', error);
+    }
     
     setTimeout(() => {
       router.push('/tabs/tab2');
