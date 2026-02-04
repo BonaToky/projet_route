@@ -107,6 +107,7 @@ const VisitorDashboard = () => {
       const reportsData: Report[] = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
+        console.log('Signalement:', doc.id, 'Photos:', data.photos);
         reportsData.push({
           id: doc.id,
           latitude: data.latitude,
@@ -120,6 +121,7 @@ const VisitorDashboard = () => {
           photos: data.photos || [],
         });
       });
+      console.log('Total reports:', reportsData.length, 'Reports with photos:', reportsData.filter(r => r.photos && r.photos.length > 0).length);
 
       const travauxSnapshot = await getDocs(collection(db, 'travaux'));
       const travauxData: any[] = [];
