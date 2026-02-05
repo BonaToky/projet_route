@@ -1,8 +1,15 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase';
+import { Capacitor } from '@capacitor/core';
 
 export const initializeNotifications = async (userId: string) => {
+  // Vérifier si on est sur une plateforme native (pas web)
+  if (!Capacitor.isNativePlatform()) {
+    console.log('Notifications non disponibles sur web');
+    return false;
+  }
+
   try {
     // Demander la permission pour les notifications
     const permission = await PushNotifications.requestPermissions();
@@ -35,17 +42,13 @@ export const initializeNotifications = async (userId: string) => {
       // Écouter les notifications reçues quand l'app est au premier plan
       await PushNotifications.addListener('pushNotificationReceived', (notification) => {
         console.log('Notification reçue:', notification);
-        // Afficher un toast ou une alerte
-        alert(`📢 ${notification.title}\n${notification.body}`);
       });
       
       // Écouter les actions sur les notifications
       await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
         console.log('Action sur notification:', action);
-        // Rediriger l'utilisateur vers la page appropriée
         const data = action.notification.data;
         if (data.signalementId) {
-          // Naviguer vers le signalement
           console.log('Redirection vers signalement:', data.signalementId);
         }
       });

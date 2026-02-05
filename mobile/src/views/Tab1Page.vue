@@ -81,7 +81,8 @@ import { mail, lockClosed, arrowForward, layers, settings } from 'ionicons/icons
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
-import { getApiBaseUrl } from '@/config/api';import { initializeNotifications } from '../services/notificationService';
+import { getApiBaseUrl } from '@/config/api';
+
 const router = useRouter();
 const loginEmail = ref('');
 const loginPassword = ref('');
@@ -221,29 +222,22 @@ const login = async () => {
     localStorage.setItem('currentUser', JSON.stringify(user));
     startSessionCheck();
     
-    // Initialiser les notifications après connexion réussie
-    try {
-      await initializeNotifications(userDoc.id);
-      console.log('Notifications initialisées pour l\'utilisateur:', userDoc.id);
-    } catch (error) {
-      console.error('Erreur lors de l\'initialisation des notifications:', error);
-    }
+    // Navigation vers la carte immédiatement
+    router.push('/tabs/tab2');
     
+    // Déclencher les événements après navigation
     setTimeout(() => {
-      router.push('/tabs/tab2');
+      window.dispatchEvent(new CustomEvent('authStateChanged'));
+      window.dispatchEvent(new CustomEvent('userLoggedIn'));
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'currentUser',
+        newValue: JSON.stringify(user),
+        oldValue: null,
+        storageArea: localStorage
+      }));
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('authStateChanged'));
-        window.dispatchEvent(new CustomEvent('userLoggedIn'));
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: 'currentUser',
-          newValue: JSON.stringify(user),
-          oldValue: null,
-          storageArea: localStorage
-        }));
-        setTimeout(() => {
-          toastMessage.value = 'Connexion réussie';
-          showToast.value = true;
-        }, 100);
+        toastMessage.value = 'Connexion réussie';
+        showToast.value = true;
       }, 100);
     }, 100);
   } catch (error: any) {
