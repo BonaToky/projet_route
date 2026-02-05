@@ -82,8 +82,11 @@ public class SignalementController {
             try {
                 String userId = signalement.getIdUser();
                 String firestoreId = signalement.getFirestoreId();
-                if (userId != null && !userId.isEmpty() && firestoreId != null) {
+                System.out.println("DEBUG Notification - UserId: " + userId + ", FirestoreId: " + firestoreId);
+                if (userId != null && !userId.isEmpty() && firestoreId != null && !firestoreId.isEmpty()) {
                     notificationService.sendStatusUpdateNotification(userId, firestoreId, oldStatut, statut);
+                } else {
+                    System.out.println("Notification non envoyée: userId ou firestoreId manquant");
                 }
             } catch (Exception e) {
                 System.err.println("Erreur lors de l'envoi de la notification: " + e.getMessage());

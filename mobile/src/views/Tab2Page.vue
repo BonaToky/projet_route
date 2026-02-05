@@ -560,6 +560,18 @@ const submitReport = async () => {
       photos: photos.value // Stocker les base64 directement
     });
 
+    // Synchroniser automatiquement vers PostgreSQL
+    try {
+      const apiUrl = getApiBaseUrl();
+      const syncResponse = await fetch(`${apiUrl}/signalements/sync`);
+      if (syncResponse.ok) {
+        console.log('Signalement synchronisé vers PostgreSQL');
+      }
+    } catch (syncError) {
+      console.error('Erreur de synchronisation:', syncError);
+      // Ne pas bloquer l'utilisateur si la sync échoue
+    }
+
     toastMessage.value = 'Signalement envoyé avec succès';
     showToast.value = true;
     closeModal();
