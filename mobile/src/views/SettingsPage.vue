@@ -37,6 +37,10 @@
               <ion-icon :icon="save" slot="start" />
               Enregistrer
             </ion-button>
+            <ion-button expand="block" @click="clearCacheAndReload" color="warning" class="clear-btn">
+              <ion-icon :icon="refresh" slot="start" />
+              Vider le cache & Recharger
+            </ion-button>
           </div>
 
           <div v-if="testResult" class="test-result" :class="testResult.success ? 'success' : 'error'">
@@ -88,8 +92,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonInput, IonButton, IonToast, IonIcon } from '@ionic/vue';
-import { server, wifi, save, informationCircle, checkmarkCircle, closeCircle } from 'ionicons/icons';
-import { getApiBaseUrl } from '@/config/api';
+import { server, wifi, save, informationCircle, checkmarkCircle, closeCircle, refresh } from 'ionicons/icons';
+import { getApiBaseUrl, apiRequest } from '@/config/api';
 
 const serverIp = ref('');
 const showToast = ref(false);
@@ -124,7 +128,7 @@ const testConnection = async () => {
 
   try {
     const testUrl = `http://${serverIp.value}:8080/api/auth/params`;
-    const response = await fetch(testUrl, {
+    const response = await apiRequest(testUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -153,15 +157,30 @@ const testConnection = async () => {
 const saveSettings = () => {
   if (serverIp.value.trim()) {
     localStorage.setItem('api_server_ip', serverIp.value.trim());
+    console.log('✅ IP sauvegardée:', serverIp.value.trim());
   } else {
     localStorage.removeItem('api_server_ip');
   }
   
   updateCurrentUrl();
   
-  toastMessage.value = 'Paramètres enregistrés ! Redémarrez l\'application pour appliquer les changements.';
+  toastMessage.value = 'Paramètres enregistrés ! Cliquez sur "Vider le cache & Recharger" pour appliquer.';
   toastColor.value = 'success';
   showToast.value = true;
+};
+
+const clearCacheAndReload = async () => {
+  console.log('🔄 Vidage du cache et rechargement...');
+  
+  // Afficher confirmation
+  toastMessage.value = 'Cache vidé ! Rechargement en cours...';
+  toastColor.value = 'warning';
+  showToast.value = true;
+  
+  // Attendre 500ms puis recharger complètement la page
+  setTimeout(() => {
+    window.location.reload();
+  }, 500);
 };
 </script>
 

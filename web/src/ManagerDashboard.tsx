@@ -466,7 +466,23 @@ const ManagerDashboard = () => {
     if (!editingReport) return;
 
     try {
-      // Mettre à jour dans Firestore
+      // 1. Mettre à jour le statut dans PostgreSQL (envoie aussi la notification push)
+      try {
+        const statusUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/${editingReport.id}/statut`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ statut: editStatut }),
+        });
+        if (!statusUpdateResponse.ok) {
+          console.warn('Failed to update status in PostgreSQL:', await statusUpdateResponse.text());
+        }
+      } catch (error) {
+        console.warn('Error updating status in PostgreSQL:', error);
+      }
+
+      // 2. Mettre à jour dans Firestore
       await updateDoc(doc(db, 'signalements', editingReport.id), {
         surface: parseFloat(editSurface),
         description: editDescription,
@@ -489,8 +505,13 @@ const ManagerDashboard = () => {
           avancement: avancementValue,
         };
 
+        const historiqueCommentaire = 
+          editStatut === 'nouveau' ? 'Travaux non commencés' :
+          editStatut === 'en cours' ? 'Travaux en cours' :
+          'Travaux terminés';
+
         if (editingReport.travaux) {
-          // Update existing travaux in local DB
+          // Update existing travaux in PostgreSQL
           const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}`, {
             method: 'PUT',
             headers: {
@@ -500,6 +521,28 @@ const ManagerDashboard = () => {
           });
           if (!localUpdateResponse.ok) {
             console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
+          } else {
+            // Créer l'historique dans PostgreSQL
+            try {
+              const historiqueData = {
+                travaux: { id: editingReport.travaux.id },
+                dateModification: new Date().toISOString(),
+                avancement: avancementValue,
+                commentaire: historiqueCommentaire,
+              };
+              const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}/historique`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(historiqueData),
+              });
+              if (!historiqueResponse.ok) {
+                console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+              }
+            } catch (histError) {
+              console.warn('Error creating historique in PostgreSQL:', histError);
+            }
           }
 
           // Update in Firestore
@@ -514,11 +557,6 @@ const ManagerDashboard = () => {
             });
 
             // Créer l'historique dans Firestore
-            const historiqueCommentaire = 
-              editStatut === 'nouveau' ? 'Travaux non commencés' :
-              editStatut === 'en cours' ? 'Travaux en cours' :
-              'Travaux terminés';
-            
             await addDoc(collection(db, 'historiques_travaux'), {
               id_travaux: editingReport.travaux.id,
               date_modification: new Date(),
@@ -529,7 +567,7 @@ const ManagerDashboard = () => {
             console.warn('Failed to update travaux in Firestore:', firestoreError);
           }
         } else {
-          // Create new travaux in local DB
+          // Create new travaux in PostgreSQL
           const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
             method: 'POST',
             headers: {
@@ -537,7 +575,34 @@ const ManagerDashboard = () => {
             },
             body: JSON.stringify(travauxData),
           });
-          if (!localCreateResponse.ok) {
+          
+          let newTravauxId = null;
+          if (localCreateResponse.ok) {
+            const createdTravaux = await localCreateResponse.json();
+            newTravauxId = createdTravaux.id;
+
+            // Créer l'historique dans PostgreSQL
+            try {
+              const historiqueData = {
+                travaux: { id: newTravauxId },
+                dateModification: new Date().toISOString(),
+                avancement: avancementValue,
+                commentaire: historiqueCommentaire,
+              };
+              const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${newTravauxId}/historique`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(historiqueData),
+              });
+              if (!historiqueResponse.ok) {
+                console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+              }
+            } catch (histError) {
+              console.warn('Error creating historique in PostgreSQL:', histError);
+            }
+          } else {
             console.warn('Failed to create travaux in local database:', await localCreateResponse.text());
           }
 
@@ -553,11 +618,6 @@ const ManagerDashboard = () => {
             });
 
             // Créer l'historique dans Firestore
-            const historiqueCommentaire = 
-              editStatut === 'nouveau' ? 'Travaux non commencés' :
-              editStatut === 'en cours' ? 'Travaux en cours' :
-              'Travaux terminés';
-            
             await addDoc(collection(db, 'historiques_travaux'), {
               id_travaux: newTravauxDoc.id,
               date_modification: new Date(),
@@ -601,7 +661,7 @@ const ManagerDashboard = () => {
       'Travaux terminés';
 
     try {
-      // First save to local Postgres database
+      // 1. Sauvegarder dans PostgreSQL
       const travauxData = {
         signalement: { idSignalement: parseInt(selectedReport.id) },
         entreprise: { idEntreprise: parseInt(entreprise) },
@@ -619,11 +679,37 @@ const ManagerDashboard = () => {
         body: JSON.stringify(travauxData),
       });
 
-      if (!localResponse.ok) {
+      let newTravauxId = null;
+      if (localResponse.ok) {
+        const createdTravaux = await localResponse.json();
+        newTravauxId = createdTravaux.id;
+
+        // Créer l'historique dans PostgreSQL
+        try {
+          const historiqueData = {
+            travaux: { id: newTravauxId },
+            dateModification: new Date().toISOString(),
+            avancement: avancementValue,
+            commentaire: commentaire,
+          };
+          const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${newTravauxId}/historique`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(historiqueData),
+          });
+          if (!historiqueResponse.ok) {
+            console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+          }
+        } catch (histError) {
+          console.warn('Error creating historique in PostgreSQL:', histError);
+        }
+      } else {
         console.warn('Failed to save to local database:', await localResponse.text());
       }
 
-      // Then try to save to Firestore
+      // 2. Sauvegarder dans Firestore
       let travauxId = null;
       try {
         const travauxDoc = await addDoc(collection(db, 'travaux'), {

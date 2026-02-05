@@ -81,7 +81,7 @@ import { mail, lockClosed, arrowForward, layers, settings } from 'ionicons/icons
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
-import { getApiBaseUrl } from '@/config/api';
+import { getApiBaseUrl, apiRequest } from '@/config/api';
 
 const router = useRouter();
 const loginEmail = ref('');
@@ -111,7 +111,7 @@ onMounted(() => {
 const reportFailedLogin = async (email: string) => {
   try {
     const apiUrl = getApiBaseUrl();
-    const response = await fetch(`${apiUrl}/auth/report-failed-login`, {
+    const response = await apiRequest(`${apiUrl}/auth/report-failed-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -161,7 +161,7 @@ const login = async () => {
     
     try {
       const apiUrl = getApiBaseUrl();
-      const checkBlockResponse = await fetch(`${apiUrl}/auth/check-blocked`, {
+      const checkBlockResponse = await apiRequest(`${apiUrl}/auth/check-blocked`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail.value }),
@@ -184,7 +184,7 @@ const login = async () => {
     let sessionDurationMinutes = 60;
     try {
       const apiUrl = getApiBaseUrl();
-      const paramsResponse = await fetch(`${apiUrl}/auth/params`);
+      const paramsResponse = await apiRequest(`${apiUrl}/auth/params`);
       if (paramsResponse.ok) {
         const params = await paramsResponse.json();
         const sessionParam = params.find((p: any) => p.cle === 'duree_session_minutes');
@@ -206,7 +206,7 @@ const login = async () => {
     
     try {
       const apiUrl = getApiBaseUrl();
-      await fetch(`${apiUrl}/auth/mobile-login`, {
+      await apiRequest(`${apiUrl}/auth/mobile-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
