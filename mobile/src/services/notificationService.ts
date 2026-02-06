@@ -22,13 +22,13 @@ export const initializeNotifications = async (userId: string) => {
       await PushNotifications.addListener('registration', async (token) => {
         console.log('FCM Token:', token.value);
         
-        // Sauvegarder le token dans Firestore
+        // Sauvegarder le token dans Firestore (collection "utilisateurs" pour le backend)
         try {
-          await setDoc(doc(db, 'users', userId), {
+          await setDoc(doc(db, 'utilisateurs', userId), {
             fcmToken: token.value,
             lastTokenUpdate: new Date()
           }, { merge: true });
-          console.log('Token sauvegardé dans Firestore');
+          console.log('✅ Token FCM sauvegardé dans Firestore pour userId:', userId);
         } catch (error) {
           console.error('Erreur lors de la sauvegarde du token:', error);
         }
@@ -66,7 +66,7 @@ export const initializeNotifications = async (userId: string) => {
 
 export const getStoredFcmToken = async (userId: string): Promise<string | null> => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', userId));
+    const userDoc = await getDoc(doc(db, 'utilisateurs', userId));
     if (userDoc.exists()) {
       return userDoc.data().fcmToken || null;
     }

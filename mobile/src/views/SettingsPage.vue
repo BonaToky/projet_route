@@ -127,13 +127,26 @@ const testConnection = async () => {
   }
 
   try {
-    const testUrl = `http://${serverIp.value}:8080/api/auth/params`;
+    // Sauvegarder temporairement l'IP pour le test
+    const oldIp = localStorage.getItem('api_server_ip');
+    localStorage.setItem('api_server_ip', serverIp.value.trim());
+    
+    const testUrl = `http://${serverIp.value.trim()}:8080/api/auth/params`;
+    console.log('🧪 Test connexion vers:', testUrl);
+    
     const response = await apiRequest(testUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
       }
     });
+    
+    // Restaurer l'ancienne IP après le test
+    if (oldIp !== null) {
+      localStorage.setItem('api_server_ip', oldIp);
+    } else {
+      localStorage.removeItem('api_server_ip');
+    }
 
     if (response.ok) {
       testResult.value = {
@@ -147,10 +160,14 @@ const testConnection = async () => {
       };
     }
   } catch (error: any) {
+    // Restaurer l'ancienne IP en cas d'erreur
+    const oldIp = localStorage.getItem('api_server_ip');
+    
     testResult.value = {
       success: false,
       message: `❌ Impossible de se connecter: ${error.message}`
     };
+    console.error('Test connexion error:', error);
   }
 };
 

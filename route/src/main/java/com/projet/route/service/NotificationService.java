@@ -22,8 +22,10 @@ public class NotificationService {
     
     public void sendStatusUpdateNotification(String userId, String signalementId, String oldStatus, String newStatus) {
         try {
-            // Récupérer le token FCM de l'utilisateur
-            DocumentSnapshot userDoc = firestore.collection("users").document(userId).get().get();
+            logger.info("📨 Tentative d'envoi de notification - userId: {}, signalementId: {}", userId, signalementId);
+            
+            // Récupérer le token FCM de l'utilisateur depuis la collection "utilisateurs"
+            DocumentSnapshot userDoc = firestore.collection("utilisateurs").document(userId).get().get();
             
             if (!userDoc.exists()) {
                 logger.warn("Utilisateur non trouvé: {}", userId);

@@ -57,6 +57,16 @@ public class SignalementController {
         }
     }
 
+    @GetMapping("/firestore/{firestoreId}")
+    public ResponseEntity<Signalement> getSignalementByFirestoreId(@PathVariable String firestoreId) {
+        Signalement signalement = signalementRepository.findByFirestoreId(firestoreId);
+        if (signalement != null) {
+            return ResponseEntity.ok(signalement);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PutMapping("/{id}/statut")
     public ResponseEntity<String> updateStatut(@PathVariable Long id, @RequestBody Map<String, String> body) {
         try {
