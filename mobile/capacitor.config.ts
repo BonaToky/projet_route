@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'io.ionic.starter',
-  appName: 'mobile',
+  appName: 'RouteWatch',
   webDir: 'dist',
   plugins: {
     Geolocation: {
@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
         android: 'ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION',
         ios: 'location'
       }
+    },
+    PushNotifications: {
+      presentationOptions: ['badge', 'sound', 'alert']
     }
   }
 };

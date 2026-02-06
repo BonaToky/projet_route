@@ -41,6 +41,16 @@ public class TravauxController {
         }
     }
 
+    @GetMapping("/firestore/{firestoreId}")
+    public ResponseEntity<Travaux> getTravauxByFirestoreId(@PathVariable String firestoreId) {
+        Travaux travaux = travauxRepository.findByFirestoreId(firestoreId);
+        if (travaux != null) {
+            return ResponseEntity.ok(travaux);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping
     public Travaux createTravaux(@RequestBody Travaux travaux) {
         Travaux savedTravaux = travauxRepository.save(travaux);
@@ -61,12 +71,23 @@ public class TravauxController {
         Optional<Travaux> optionalTravaux = travauxRepository.findById(id);
         if (optionalTravaux.isPresent()) {
             Travaux travaux = optionalTravaux.get();
-            travaux.setEntreprise(travauxDetails.getEntreprise());
-            travaux.setSignalement(travauxDetails.getSignalement());
-            travaux.setBudget(travauxDetails.getBudget());
-            travaux.setDateDebutTravaux(travauxDetails.getDateDebutTravaux());
-            travaux.setDateFinTravaux(travauxDetails.getDateFinTravaux());
-            travaux.setAvancement(travauxDetails.getAvancement());
+            
+            // Ne pas changer le signalement lors d'un UPDATE
+            if (travauxDetails.getEntreprise() != null) {
+                travaux.setEntreprise(travauxDetails.getEntreprise());
+            }
+            if (travauxDetails.getBudget() != null) {
+                travaux.setBudget(travauxDetails.getBudget());
+            }
+            if (travauxDetails.getDateDebutTravaux() != null) {
+                travaux.setDateDebutTravaux(travauxDetails.getDateDebutTravaux());
+            }
+            if (travauxDetails.getDateFinTravaux() != null) {
+                travaux.setDateFinTravaux(travauxDetails.getDateFinTravaux());
+            }
+            if (travauxDetails.getAvancement() != null) {
+                travaux.setAvancement(travauxDetails.getAvancement());
+            }
 
             Travaux updatedTravaux = travauxRepository.save(travaux);
 

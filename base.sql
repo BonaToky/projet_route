@@ -92,7 +92,7 @@ CREATE TABLE signalement (
 CREATE TABLE travaux (
    id SERIAL PRIMARY KEY,
    id_entreprise INT,
-   id_signalement INT,
+   id_signalement INT UNIQUE, -- Un signalement ne peut avoir qu'un seul travaux
    budget DECIMAL(20,2),
    date_debut_travaux DATE,
    date_fin_travaux DATE,

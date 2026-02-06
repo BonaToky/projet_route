@@ -466,9 +466,32 @@ const ManagerDashboard = () => {
     if (!editingReport) return;
 
     try {
-      // 1. Mettre à jour le statut dans PostgreSQL (envoie aussi la notification push)
+      // 0. Trigger sync to ensure signalement exists in PostgreSQL
       try {
-        const statusUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/${editingReport.id}/statut`, {
+        await authenticatedFetch('http://localhost:8080/api/signalements/sync', {
+          method: 'GET',
+        });
+      } catch (syncError) {
+        console.warn('Sync warning:', syncError);
+      }
+
+      // 1. Get PostgreSQL ID from Firebase ID
+      const signalementResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/firestore/${editingReport.id}`, {
+        method: 'GET',
+      });
+
+      let postgresSignalementId: number;
+      if (signalementResponse.ok) {
+        const signalementData = await signalementResponse.json();
+        postgresSignalementId = signalementData.idSignalement;
+      } else {
+        alert('Signalement non trouvé dans la base PostgreSQL. Veuillez réessayer après synchronisation.');
+        return;
+      }
+
+      // 2. Mettre à jour le statut dans PostgreSQL (envoie aussi la notification push)
+      try {
+        const statusUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/${postgresSignalementId}/statut`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -482,7 +505,7 @@ const ManagerDashboard = () => {
         console.warn('Error updating status in PostgreSQL:', error);
       }
 
-      // 2. Mettre à jour dans Firestore
+      // 3. Mettre à jour dans Firestore
       await updateDoc(doc(db, 'signalements', editingReport.id), {
         surface: parseFloat(editSurface),
         description: editDescription,
@@ -497,7 +520,7 @@ const ManagerDashboard = () => {
 
       if (editEntreprise && editBudget && editDateDebut && editDateFin) {
         const travauxData = {
-          signalement: { idSignalement: parseInt(editingReport.id) },
+          signalement: { idSignalement: postgresSignalementId },
           entreprise: { idEntreprise: parseInt(editEntreprise) },
           budget: parseFloat(editBudget),
           dateDebutTravaux: editDateDebut,
@@ -512,36 +535,95 @@ const ManagerDashboard = () => {
 
         if (editingReport.travaux) {
           // Update existing travaux in PostgreSQL
-          const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(travauxData),
-          });
-          if (!localUpdateResponse.ok) {
-            console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
-          } else {
-            // Créer l'historique dans PostgreSQL
-            try {
-              const historiqueData = {
-                travaux: { id: editingReport.travaux.id },
-                dateModification: new Date().toISOString(),
-                avancement: avancementValue,
-                commentaire: historiqueCommentaire,
-              };
-              const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${editingReport.travaux.id}/historique`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(historiqueData),
-              });
-              if (!historiqueResponse.ok) {
-                console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+          // First, get the PostgreSQL ID from the Firestore ID
+          let postgresTravauxId = null;
+          try {
+            const lookupResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/firestore/${editingReport.travaux.id}`);
+            if (lookupResponse.ok) {
+              const postgresData = await lookupResponse.json();
+              postgresTravauxId = postgresData.id;
+            }
+          } catch (lookupError) {
+            console.warn('Failed to lookup PostgreSQL ID for travaux:', lookupError);
+          }
+
+          if (postgresTravauxId) {
+            // Update existing travaux - ne PAS envoyer le signalement dans l'update
+            const updateData = {
+              entreprise: { idEntreprise: parseInt(editEntreprise) },
+              budget: parseFloat(editBudget),
+              dateDebutTravaux: editDateDebut,
+              dateFinTravaux: editDateFin,
+              avancement: avancementValue,
+            };
+
+            const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(updateData),
+            });
+            if (!localUpdateResponse.ok) {
+              console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
+            } else {
+              // Créer l'historique dans PostgreSQL
+              try {
+                const historiqueData = {
+                  travaux: { id: postgresTravauxId },
+                  dateModification: new Date().toISOString(),
+                  avancement: avancementValue,
+                  commentaire: historiqueCommentaire,
+                };
+                const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}/historique`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(historiqueData),
+                });
+                if (!historiqueResponse.ok) {
+                  console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+                }
+              } catch (histError) {
+                console.warn('Error creating historique in PostgreSQL:', histError);
               }
-            } catch (histError) {
-              console.warn('Error creating historique in PostgreSQL:', histError);
+            }
+          } else {
+            // Travaux existe dans Firestore mais pas dans PostgreSQL - créer
+            const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(travauxData),
+            });
+            
+            if (localCreateResponse.ok) {
+              const createdTravaux = await localCreateResponse.json();
+              postgresTravauxId = createdTravaux.id;
+
+              // Créer l'historique dans PostgreSQL
+              try {
+                const historiqueData = {
+                  travaux: { id: postgresTravauxId },
+                  dateModification: new Date().toISOString(),
+                  avancement: avancementValue,
+                  commentaire: historiqueCommentaire,
+                };
+                const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}/historique`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(historiqueData),
+                });
+                if (!historiqueResponse.ok) {
+                  console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
+                }
+              } catch (histError) {
+                console.warn('Error creating historique in PostgreSQL:', histError);
+              }
             }
           }
 
@@ -661,9 +743,31 @@ const ManagerDashboard = () => {
       'Travaux terminés';
 
     try {
-      // 1. Sauvegarder dans PostgreSQL
+      // 0. Trigger sync to ensure signalement exists in PostgreSQL
+      try {
+        await authenticatedFetch('http://localhost:8080/api/signalements/sync', {
+          method: 'GET',
+        });
+      } catch (syncError) {
+        console.warn('Sync warning:', syncError);
+      }
+
+      // 1. Get PostgreSQL ID from Firebase ID
+      const signalementResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/firestore/${selectedReport.id}`, {
+        method: 'GET',
+      });
+
+      if (!signalementResponse.ok) {
+        alert('Signalement non trouvé dans la base PostgreSQL. Veuillez réessayer après synchronisation.');
+        return;
+      }
+
+      const signalementData = await signalementResponse.json();
+      const postgresSignalementId = signalementData.idSignalement;
+
+      // 2. Sauvegarder dans PostgreSQL
       const travauxData = {
-        signalement: { idSignalement: parseInt(selectedReport.id) },
+        signalement: { idSignalement: postgresSignalementId },
         entreprise: { idEntreprise: parseInt(entreprise) },
         budget: parseFloat(budget),
         dateDebutTravaux: dateDebut,
