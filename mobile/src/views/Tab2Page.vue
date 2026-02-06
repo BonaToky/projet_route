@@ -158,7 +158,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { db } from '@/firebase';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
-import { getApiBaseUrl } from '@/config/api';
+import { getApiBaseUrl, apiRequest } from '@/config/api';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -560,6 +560,18 @@ const submitReport = async () => {
       photos: photos.value // Stocker les base64 directement
     });
 
+    // Synchroniser automatiquement vers PostgreSQL
+    try {
+      const apiUrl = getApiBaseUrl();
+      const syncResponse = await apiRequest(`${apiUrl}/signalements/sync`);
+      if (syncResponse.ok) {
+        console.log('Signalement synchronisé vers PostgreSQL');
+      }
+    } catch (syncError) {
+      console.error('Erreur de synchronisation:', syncError);
+      // Ne pas bloquer l'utilisateur si la sync échoue
+    }
+
     toastMessage.value = 'Signalement envoyé avec succès';
     showToast.value = true;
     closeModal();
@@ -575,7 +587,7 @@ const syncLocalToFirestore = async () => {
   try {
     // Fetch travaux from local database
     const apiUrl = getApiBaseUrl();
-    const response = await fetch(`${apiUrl}/travaux`);
+    const response = await apiRequest(`${apiUrl}/travaux`);
     if (!response.ok) {
       throw new Error('Failed to fetch local travaux');
     }
@@ -608,7 +620,7 @@ const syncLocalToFirestore = async () => {
     }
 
     // Also sync historiques_travaux
-    const histResponse = await fetch(`${apiUrl}/historiques-travaux`);
+    const histResponse = await apiRequest(`${apiUrl}/historiques-travaux`);
     if (histResponse.ok) {
       const localHistoriques = await histResponse.json();
       const histSnapshot = await getDocs(collection(db, 'historiques_travaux'));

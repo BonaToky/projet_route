@@ -4,6 +4,7 @@ import com.projet.route.models.Signalement;
 import com.projet.route.repository.SignalementRepository;
 import com.projet.route.service.FirebaseSyncService;
 import com.projet.route.service.TravauxService;
+import com.projet.route.service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,9 @@ public class SignalementController {
 
     @Autowired
     private TravauxService travauxService;
+    
+    @Autowired
+    private NotificationService notificationService;
 
     @GetMapping
     public List<Signalement> getAllSignalements() {
@@ -67,11 +71,27 @@ public class SignalementController {
             }
 
             Signalement signalement = signalementOpt.get();
+            String oldStatut = signalement.getStatut();
             signalement.setStatut(statut);
             signalementRepository.save(signalement);
 
             // Mettre à jour automatiquement l'avancement des travaux
             travauxService.updateAvancementBasedOnStatut(id, statut);
+            
+            // Envoyer une notification à l'utilisateur
+            try {
+                String userId = signalement.getIdUser();
+                String firestoreId = signalement.getFirestoreId();
+                System.out.println("DEBUG Notification - UserId: " + userId + ", FirestoreId: " + firestoreId);
+                if (userId != null && !userId.isEmpty() && firestoreId != null && !firestoreId.isEmpty()) {
+                    notificationService.sendStatusUpdateNotification(userId, firestoreId, oldStatut, statut);
+                } else {
+                    System.out.println("Notification non envoyée: userId ou firestoreId manquant");
+                }
+            } catch (Exception e) {
+                System.err.println("Erreur lors de l'envoi de la notification: " + e.getMessage());
+                e.printStackTrace();
+            }
 
             return ResponseEntity.ok("Statut mis à jour");
         } catch (Exception e) {

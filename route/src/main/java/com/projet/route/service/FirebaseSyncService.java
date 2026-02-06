@@ -137,7 +137,16 @@ public class FirebaseSyncService {
                 }
 
                 if (data.get("budget") != null) {
-                    travaux.setBudget(BigDecimal.valueOf((Double) data.get("budget")));
+                    Object budgetObj = data.get("budget");
+                    double budgetValue;
+                    if (budgetObj instanceof Long) {
+                        budgetValue = ((Long) budgetObj).doubleValue();
+                    } else if (budgetObj instanceof Double) {
+                        budgetValue = (Double) budgetObj;
+                    } else {
+                        budgetValue = Double.parseDouble(budgetObj.toString());
+                    }
+                    travaux.setBudget(BigDecimal.valueOf(budgetValue));
                 }
 
                 if (data.get("date_debut_travaux") != null) {
@@ -151,7 +160,16 @@ public class FirebaseSyncService {
                 }
 
                 if (data.get("avancement") != null) {
-                    travaux.setAvancement(BigDecimal.valueOf((Double) data.get("avancement")));
+                    Object avancementObj = data.get("avancement");
+                    double avancementValue;
+                    if (avancementObj instanceof Long) {
+                        avancementValue = ((Long) avancementObj).doubleValue();
+                    } else if (avancementObj instanceof Double) {
+                        avancementValue = (Double) avancementObj;
+                    } else {
+                        avancementValue = Double.parseDouble(avancementObj.toString());
+                    }
+                    travaux.setAvancement(BigDecimal.valueOf(avancementValue));
                 }
 
                 // Check if already exists by firestoreId
