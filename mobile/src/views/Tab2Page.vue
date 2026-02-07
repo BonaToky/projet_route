@@ -227,6 +227,8 @@ const allMarkers = ref<any[]>([]);
 const showRecapModal = ref(false);
 const recapData = ref({ count: 0, totalSurface: 0, averageAvancement: 0, totalBudget: 0 });
 const photos = ref<string[]>([]);
+const isInitializing = ref(false);
+const locationPermissionGranted = ref(false);
 
 onMounted(async () => {
   const user = localStorage.getItem('currentUser');
@@ -235,7 +237,7 @@ onMounted(async () => {
     showToast.value = true;
     return;
   }
-  initMap();
+  await initMapWithPermission();
 });
 
 const goToSettings = () => {
@@ -248,8 +250,61 @@ const refreshMap = () => {
   showToast.value = true;
 };
 
+const initMapWithPermission = async () => {
+  if (isInitializing.value) {
+    console.log('⏳ Initialisation déjà en cours, skip...');
+    return;
+  }
+  isInitializing.value = true;
+
+  try {
+    console.log('🗺️ Début de l\'initialisation de la carte...');
+    
+    // Vérifier la permission AVANT d'essayer d'obtenir la position
+    const permission = await Geolocation.checkPermissions();
+    console.log('🔍 État permission localisation:', permission.location);
+    
+    if (permission.location === 'granted') {
+      // Permission déjà accordée, initialiser directement
+      console.log('✅ Permission localisation déjà accordée, init carte avec GPS');
+      locationPermissionGranted.value = true;
+      await initMap();
+    } else if (permission.location === 'prompt' || permission.location === 'prompt-with-rationale') {
+      // Demander la permission
+      console.log('📍 Demande de permission localisation à l\'utilisateur...');
+      toastMessage.value = 'Veuillez autoriser l\'accès à votre position';
+      showToast.value = true;
+      
+      const requested = await Geolocation.requestPermissions();
+      console.log('📋 Résultat demande permission:', requested.location);
+      
+      if (requested.location === 'granted') {
+        console.log('✅ Permission accordée ! Attente puis init GPS...');
+        locationPermissionGranted.value = true;
+        // Attendre que le système soit prêt
+        await new Promise(resolve => setTimeout(resolve, 800));
+        await initMap();
+      } else {
+        console.warn('❌ Permission localisation refusée par l\'utilisateur');
+        await initMapWithDefaultLocation();
+      }
+    } else {
+      // Permission refusée définitivement
+      console.warn('❌ Permission localisation refusée (état:', permission.location, ')');
+      await initMapWithDefaultLocation();
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de l\'init carte avec permission:', error);
+    await initMapWithDefaultLocation();
+  } finally {
+    isInitializing.value = false;
+    console.log('✅ Initialisation carte terminée');
+  }
+};
+
 const initMap = async () => {
   try {
+    console.log('🗺️ Initialisation de la carte avec géolocalisation...');
     const position = await Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 10000,
@@ -257,6 +312,7 @@ const initMap = async () => {
     });
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
+    console.log(`📍 Position obtenue: ${lat}, ${lng}`);
 
     map = L.map('map').setView([lat, lng], 15);
 
@@ -280,6 +336,9 @@ const initMap = async () => {
 
     L.marker([lat, lng], { icon: userIcon }).addTo(map).bindPopup('📍 Votre position');
 
+    toastMessage.value = '✅ Position GPS activée';
+    showToast.value = true;
+    
     loadAllReports();
 
     map.on('click', (e: L.LeafletMouseEvent) => {
@@ -292,49 +351,58 @@ const initMap = async () => {
     });
   } catch (error: any) {
     console.error('Erreur de géolocalisation:', error);
-    
-    // Utiliser Antananarivo par défaut si la géolocalisation échoue
-    toastMessage.value = 'GPS non disponible. Position par défaut: Antananarivo';
-    showToast.value = true;
-    
-    const defaultLat = -18.8792;
-    const defaultLng = 47.5079;
-    
-    map = L.map('map').setView([defaultLat, defaultLng], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
-    
-    // Ajouter un marqueur à la position par défaut
-    const defaultIcon = L.divIcon({
-      className: 'default-marker',
-      html: `<div style="
-        background: #ef4444;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
-      "></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10],
-    });
-    
-    L.marker([defaultLat, defaultLng], { icon: defaultIcon })
-      .addTo(map)
-      .bindPopup('📍 Position par défaut (Antananarivo)');
-    
-    loadAllReports();
-    
-    map.on('click', (e: L.LeafletMouseEvent) => {
-      if (marker) {
-        map!.removeLayer(marker);
-      }
-      marker = L.marker(e.latlng).addTo(map!);
-      currentLatLng.value = e.latlng;
-      showModal.value = true;
-    });
+    await initMapWithDefaultLocation();
   }
+};
+
+const initMapWithDefaultLocation = async () => {
+  console.log('🗺️ Initialisation de la carte avec position par défaut...');
+  toastMessage.value = '⚠️ GPS non disponible. Position: Antananarivo';
+  showToast.value = true;
+  
+  const defaultLat = -18.8792;
+  const defaultLng = 47.5079;
+  
+  if (map) {
+    map.remove();
+  }
+  
+  map = L.map('map').setView([defaultLat, defaultLng], 13);
+  
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+  
+  // Ajouter un marqueur à la position par défaut
+  const defaultIcon = L.divIcon({
+    className: 'default-marker',
+    html: `<div style="
+      background: #ef4444;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5);
+    "></div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+  
+  L.marker([defaultLat, defaultLng], { icon: defaultIcon })
+    .addTo(map)
+    .bindPopup('📍 Position par défaut (Antananarivo)');
+  
+  loadAllReports();
+  
+  map.on('click', (e: L.LeafletMouseEvent) => {
+    console.log('🗺️ Clic sur la carte:', e.latlng);
+    if (marker) {
+      map!.removeLayer(marker);
+    }
+    marker = L.marker(e.latlng).addTo(map!);
+    currentLatLng.value = e.latlng;
+    showModal.value = true;
+  });
 };
 
 const loadAllReports = async () => {
