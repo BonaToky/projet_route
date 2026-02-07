@@ -391,32 +391,32 @@ const login = async () => {
     localStorage.setItem('currentUser', JSON.stringify(user));
     startSessionCheck();
     
-    // Initialiser les notifications push après un délai
-    setTimeout(async () => {
-      try {
-        console.log('🔔 Initialisation des notifications pour userId:', userDoc.id);
-        const notifResult = await initializeNotifications(userDoc.id);
-        if (notifResult) {
-          console.log('✅ Notifications initialisées avec succès');
-        } else {
-          console.warn('⚠️ Notifications non activées (permission refusée ou plateforme non supportée)');
-        }
-      } catch (error) {
-        console.error('❌ Erreur lors de l\'initialisation des notifications:', error);
-      }
-    }, 2000);
+    toastMessage.value = 'Connexion réussie ! Initialisation...';
+    toastColor.value = 'success';
+    showToast.value = true;
     
-    // Navigation vers la carte immédiatement
+    // Initialiser les notifications AVANT de rediriger
+    try {
+      console.log('🔔 Initialisation des notifications pour userId:', userDoc.id);
+      const notifResult = await initializeNotifications(userDoc.id);
+      if (notifResult) {
+        console.log('✅ Notifications initialisées avec succès');
+      } else {
+        console.warn('⚠️ Notifications non activées (permission refusée ou plateforme non supportée)');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation des notifications:', error);
+    }
+    
+    // Attendre un peu puis naviguer vers la carte
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Navigation vers la carte
     router.push('/tabs/tab2');
     
     // Déclencher les événements après navigation
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('authStateChanged'));
-      window.dispatchEvent(new CustomEvent('userLoggedIn'));
-      toastMessage.value = 'Connexion réussie';
-      toastColor.value = 'success';
-      showToast.value = true;
-    }, 100);
+    window.dispatchEvent(new CustomEvent('authStateChanged'));
+    window.dispatchEvent(new CustomEvent('userLoggedIn'));
   } catch (error: any) {
     console.error('Erreur de connexion:', error);
     toastMessage.value = 'Erreur de connexion: ' + error.message;
