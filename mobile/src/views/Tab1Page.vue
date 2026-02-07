@@ -132,7 +132,7 @@
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonContent, IonInput, IonButton, IonToast, IonIcon, IonSpinner } from '@ionic/vue';
 import { mail, lockClosed, arrowForward, layers, settings, server, informationCircle, checkmarkCircle, closeCircle, wifi, save, refresh } from 'ionicons/icons';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import { useRouter } from 'vue-router';
 import { getApiBaseUrl, apiRequest } from '@/config/api';
@@ -241,10 +241,64 @@ const saveIp = () => {
   showToast.value = true;
 };
 
-const continueToLogin = () => {
+const continueToLogin = async () => {
   // Vérifier que l'IP est sauvegardée
   if (!localStorage.getItem('api_server_ip') && serverIp.value.trim()) {
     localStorage.setItem('api_server_ip', serverIp.value.trim());
+  }
+  
+  console.log('🔄 Synchronisation des utilisateurs depuis PostgreSQL...');
+  
+  // Synchroniser les utilisateurs depuis PostgreSQL vers Firestore
+  try {
+    const apiUrl = getApiBaseUrl();
+    const usersResponse = await apiRequest(`${apiUrl}/auth/users`);
+    
+    if (usersResponse.ok) {
+      const postgresUsers = await usersResponse.json();
+      console.log(`📥 ${postgresUsers.length} utilisateurs trouvés dans PostgreSQL`);
+      
+      for (const user of postgresUsers) {
+        if (!user.email) continue;
+        
+        // Chercher l'utilisateur dans Firestore par email
+        const usersQuery = query(
+          collection(db, 'utilisateurs'),
+          where('email', '==', user.email)
+        );
+        const userSnapshot = await getDocs(usersQuery);
+        
+        if (userSnapshot.empty) {
+          // Créer dans Firestore
+          await addDoc(collection(db, 'utilisateurs'), {
+            nomUtilisateur: user.nomUtilisateur || '',
+            email: user.email,
+            motDePasse: user.motDePasse || '',
+            role: user.role?.nom || 'UTILISATEUR',
+            estBloque: user.estBloque || false,
+            dateCreation: user.dateCreation ? new Date(user.dateCreation) : new Date(),
+            sourceAuth: user.sourceAuth || 'local'
+          });
+          console.log(`✅ Utilisateur créé dans Firestore: ${user.email}`);
+        } else {
+          // Mettre à jour dans Firestore
+          const docId = userSnapshot.docs[0].id;
+          await updateDoc(doc(db, 'utilisateurs', docId), {
+            nomUtilisateur: user.nomUtilisateur || '',
+            motDePasse: user.motDePasse || '',
+            role: user.role?.nom || 'UTILISATEUR',
+            estBloque: user.estBloque || false,
+            sourceAuth: user.sourceAuth || 'local'
+          });
+          console.log(`🔄 Utilisateur mis à jour dans Firestore: ${user.email}`);
+        }
+      }
+      
+      console.log('✅ Synchronisation utilisateurs terminée');
+    }
+  } catch (error) {
+    console.error('❌ Erreur lors de la synchronisation des utilisateurs:', error);
+    // Ne pas bloquer le login si la sync échoue
   }
   
   console.log('✅ Passage au formulaire de login...');

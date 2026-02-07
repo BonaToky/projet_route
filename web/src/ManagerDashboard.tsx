@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, updateDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -362,77 +362,113 @@ const ManagerDashboard = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) return;
+    
     try {
+      // Trouver l'utilisateur dans la liste actuelle (déjà chargée)
+      const user = users.find(u => u.idUtilisateur === id);
+      if (!user) {
+        alert('Utilisateur non trouvé');
+        return;
+      }
+      
+      // 1. Supprimer de PostgreSQL
       const response = await authenticatedFetch(`http://localhost:8080/api/auth/users/${id}`, { 
         method: 'DELETE' 
       });
       const data = await response.text();
+      
       if (response.ok) {
-        alert(data);
+        // 2. Supprimer de Firestore (collection "utilisateurs")
+        try {
+          const utilisateursRef = collection(db, 'utilisateurs');
+          const q = query(utilisateursRef, where('email', '==', user.email));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            // Supprimer tous les documents trouvés avec cet email
+            const deletePromises = querySnapshot.docs.map(docSnapshot => 
+              deleteDoc(doc(db, 'utilisateurs', docSnapshot.id))
+            );
+            await Promise.all(deletePromises);
+            console.log('✅ Utilisateur supprimé de Firestore:', user.email);
+          } else {
+            console.warn('⚠️ Utilisateur non trouvé dans Firestore:', user.email);
+          }
+        } catch (firestoreError) {
+          console.error('❌ Erreur lors de la suppression Firestore:', firestoreError);
+          alert('Utilisateur supprimé de PostgreSQL mais erreur Firestore: ' + firestoreError);
+        }
+        
+        alert('Utilisateur supprimé avec succès de PostgreSQL et Firestore');
         fetchUsers();
       } else {
-        alert('Error: ' + data);
+        alert('Erreur PostgreSQL: ' + data);
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('An error occurred');
+      alert('Une erreur s\'est produite');
     }
   };
 
   const syncReports = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, 'signalements'));
-      const reportsData: Report[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        reportsData.push({
-          id: doc.id,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          Id_User: data.Id_User,
-          surface: data.surface,
-          type_probleme: data.type_probleme,
-          description: data.description,
-          date_ajoute: data.date_ajoute.toDate(),
-          statut: data.statut,
-        });
-      });
-
-      const travauxSnapshot = await getDocs(collection(db, 'travaux'));
-      const travauxData: any[] = [];
-      travauxSnapshot.forEach((doc) => {
-        const data = doc.data();
-        travauxData.push({
-          id: doc.id,
-          id_signalement: data.id_signalement,
-          id_entreprise: data.id_entreprise,
-          budget: data.budget,
-          date_debut_travaux: data.date_debut_travaux.toDate(),
-          date_fin_travaux: data.date_fin_travaux.toDate(),
-          avancement: data.avancement,
-        });
-      });
-
-      const reportsWithTravaux = reportsData.map(report => {
-        const travaux = travauxData.find(t => t.id_signalement === report.id);
+      // Manager récupère les données depuis PostgreSQL (fonctionne offline)
+      console.log('🔄 Récupération des signalements depuis PostgreSQL...');
+      
+      // 1. Récupérer tous les signalements depuis PostgreSQL
+      const signalementsResponse = await authenticatedFetch('http://localhost:8080/api/signalements');
+      if (!signalementsResponse.ok) {
+        throw new Error('Failed to fetch signalements from PostgreSQL');
+      }
+      const postgresSignalements = await signalementsResponse.json();
+      
+      // 2. Récupérer tous les travaux depuis PostgreSQL
+      const travauxResponse = await authenticatedFetch('http://localhost:8080/api/travaux');
+      const postgresTravaux = travauxResponse.ok ? await travauxResponse.json() : [];
+      
+      // 3. Mapper les signalements avec leurs travaux
+      const reportsWithTravaux: Report[] = postgresSignalements.map((sig: any) => {
+        const travaux = postgresTravaux.find((t: any) => 
+          t.signalement?.idSignalement === sig.idSignalement
+        );
+        
+        const baseReport: Report = {
+          id: sig.firestoreId || sig.idSignalement?.toString() || '',
+          latitude: parseFloat(sig.latitude) || 0,
+          longitude: parseFloat(sig.longitude) || 0,
+          Id_User: sig.utilisateur?.idUtilisateur?.toString() || '',
+          surface: parseFloat(sig.surface) || 0,
+          type_probleme: sig.typeProbleme || '',
+          description: sig.description || '',
+          date_ajoute: sig.dateSignalement ? new Date(sig.dateSignalement) : new Date(),
+          statut: sig.statut || 'nouveau',
+        };
+        
         if (travaux) {
-          const ent = entreprises.find(e => e.idEntreprise === travaux.id_entreprise);
+          const ent = entreprises.find(e => e.idEntreprise === travaux.entreprise?.idEntreprise);
           return {
-            ...report,
+            ...baseReport,
             travaux: {
-              ...travaux,
-              entreprise_nom: ent ? ent.nom : 'Entreprise inconnue'
+              id: travaux.id?.toString() || '',
+              id_entreprise: travaux.entreprise?.idEntreprise || 0,
+              budget: parseFloat(travaux.budget) || 0,
+              entreprise_nom: ent ? ent.nom : 'Entreprise inconnue',
+              date_debut_travaux: travaux.dateDebutTravaux ? new Date(travaux.dateDebutTravaux) : new Date(),
+              date_fin_travaux: travaux.dateFinTravaux ? new Date(travaux.dateFinTravaux) : new Date(),
+              avancement: parseFloat(travaux.avancement) || 0,
             }
           };
         }
-        return report;
+        
+        return baseReport;
       });
 
+      console.log(`✅ ${reportsWithTravaux.length} signalements chargés depuis PostgreSQL`);
       setReports(reportsWithTravaux);
     } catch (error) {
-      console.error('Error syncing reports:', error);
-      alert('Error syncing reports');
+      console.error('Error syncing reports from PostgreSQL:', error);
+      alert('Erreur lors de la récupération des signalements');
     }
   };
 
@@ -765,7 +801,67 @@ const ManagerDashboard = () => {
       const signalementData = await signalementResponse.json();
       const postgresSignalementId = signalementData.idSignalement;
 
-      // 2. Sauvegarder dans PostgreSQL
+      // 2. Vérifier si des travaux existent déjà pour ce signalement
+      const checkResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/${postgresSignalementId}`, {
+        method: 'GET',
+      });
+
+      if (checkResponse.ok) {
+        const signalement = await checkResponse.json();
+        if (signalement.travaux) {
+          // Update existing travaux
+          const updateData = {
+            signalement: { idSignalement: postgresSignalementId },
+            entreprise: { idEntreprise: parseInt(entreprise) },
+            budget: parseFloat(budget),
+            dateDebutTravaux: dateDebut,
+            dateFinTravaux: dateFin,
+            avancement: avancementValue,
+          };
+
+          const updateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${signalement.travaux.id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(updateData), 
+          });
+
+          if (updateResponse.ok) {
+            const updatedTravaux = await updateResponse.json();
+            
+            // Créer l'historique
+            try {
+              const historiqueData = {
+                travaux: { id: updatedTravaux.id },
+                dateModification: new Date().toISOString(),
+                avancement: avancementValue,
+                commentaire: commentaire,
+              };
+              await authenticatedFetch(`http://localhost:8080/api/travaux/${updatedTravaux.id}/historique`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(historiqueData),
+              });
+            } catch (histError) {
+              console.warn('Error creating historique:', histError);
+            }
+
+            alert('✅ Travaux mis à jour avec succès dans PostgreSQL');
+            setSelectedReport(null);
+            setBudget('');
+            setEntreprise('');
+            setDateDebut('');
+            setDateFin('');
+            syncReports();
+            return;
+          }
+        }
+      }
+
+      // 3. Create new travaux if none exist
       const travauxData = {
         signalement: { idSignalement: postgresSignalementId },
         entreprise: { idEntreprise: parseInt(entreprise) },
@@ -783,67 +879,40 @@ const ManagerDashboard = () => {
         body: JSON.stringify(travauxData),
       });
 
-      let newTravauxId = null;
       if (localResponse.ok) {
         const createdTravaux = await localResponse.json();
-        newTravauxId = createdTravaux.id;
 
         // Créer l'historique dans PostgreSQL
         try {
           const historiqueData = {
-            travaux: { id: newTravauxId },
+            travaux: { id: createdTravaux.id },
             dateModification: new Date().toISOString(),
             avancement: avancementValue,
             commentaire: commentaire,
           };
-          const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${newTravauxId}/historique`, {
+          await authenticatedFetch(`http://localhost:8080/api/travaux/${createdTravaux.id}/historique`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(historiqueData),
           });
-          if (!historiqueResponse.ok) {
-            console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
-          }
         } catch (histError) {
-          console.warn('Error creating historique in PostgreSQL:', histError);
+          console.warn('Error creating historique:', histError);
         }
+
+        alert('✅ Travaux ajoutés avec succès dans PostgreSQL');
+        setSelectedReport(null);
+        setBudget('');
+        setEntreprise('');
+        setDateDebut('');
+        setDateFin('');
+        syncReports();
       } else {
-        console.warn('Failed to save to local database:', await localResponse.text());
+        const errorText = await localResponse.text();
+        console.error('Failed to save travaux:', errorText);
+        alert('❌ Erreur lors de la sauvegarde des travaux: ' + errorText);
       }
-
-      // 2. Sauvegarder dans Firestore
-      let travauxId = null;
-      try {
-        const travauxDoc = await addDoc(collection(db, 'travaux'), {
-          id_signalement: selectedReport.id,
-          budget: parseFloat(budget),
-          id_entreprise: parseInt(entreprise),
-          date_debut_travaux: new Date(dateDebut),
-          date_fin_travaux: new Date(dateFin),
-          avancement: avancementValue,
-        });
-        travauxId = travauxDoc.id;
-
-        // Créer l'historique dans Firestore
-        await addDoc(collection(db, 'historiques_travaux'), {
-          id_travaux: travauxId,
-          date_modification: new Date(),
-          avancement: avancementValue,
-          commentaire: commentaire,
-        });
-      } catch (firestoreError) {
-        console.warn('Failed to save to Firestore, but saved locally:', firestoreError);
-      }
-
-      alert('Travaux ajoutés avec succès');
-      setSelectedReport(null);
-      setBudget('');
-      setEntreprise('');
-      setDateDebut('');
-      setDateFin('');
-      syncReports();
     } catch (error) {
       console.error('Error saving travaux:', error);
       alert('Error saving travaux');
