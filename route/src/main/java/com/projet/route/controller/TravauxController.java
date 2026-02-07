@@ -31,6 +31,11 @@ public class TravauxController {
         return travauxRepository.findAll();
     }
 
+    @GetMapping("/historiques")
+    public List<HistoriquesTravaux> getAllHistoriques() {
+        return historiquesTravauxRepository.findAll();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Travaux> getTravauxById(@PathVariable Long id) {
         Optional<Travaux> travaux = travauxRepository.findById(id);
@@ -55,13 +60,13 @@ public class TravauxController {
     public Travaux createTravaux(@RequestBody Travaux travaux) {
         Travaux savedTravaux = travauxRepository.save(travaux);
 
-        // Try to sync to Firestore
-        try {
-            firebaseSyncService.syncTravauxToFirestore(savedTravaux);
-        } catch (Exception e) {
-            // Log but don't fail the operation
-            System.err.println("Failed to sync travaux to Firestore: " + e.getMessage());
-        }
+        // Backend writes to PostgreSQL only - mobile writes to Firestore
+        // Sync is one-way: Firestore → PostgreSQL only
+        // try {
+        //     firebaseSyncService.syncTravauxToFirestore(savedTravaux);
+        // } catch (Exception e) {
+        //     System.err.println("Failed to sync travaux to Firestore: " + e.getMessage());
+        // }
 
         return savedTravaux;
     }
@@ -91,13 +96,13 @@ public class TravauxController {
 
             Travaux updatedTravaux = travauxRepository.save(travaux);
 
-            // Try to sync to Firestore
-            try {
-                firebaseSyncService.syncTravauxToFirestore(updatedTravaux);
-            } catch (Exception e) {
-                // Log but don't fail the operation
-                System.err.println("Failed to sync travaux to Firestore: " + e.getMessage());
-            }
+            // Backend writes to PostgreSQL only - mobile writes to Firestore
+            // Sync is one-way: Firestore → PostgreSQL only
+            // try {
+            //     firebaseSyncService.syncTravauxToFirestore(updatedTravaux);
+            // } catch (Exception e) {
+            //     System.err.println("Failed to sync travaux to Firestore: " + e.getMessage());
+            // }
 
             return ResponseEntity.ok(updatedTravaux);
         } else {
@@ -123,13 +128,13 @@ public class TravauxController {
             historique.setTravaux(travaux.get());
             HistoriquesTravaux savedHistorique = historiquesTravauxRepository.save(historique);
 
-            // Try to sync to Firestore
-            try {
-                firebaseSyncService.syncHistoriquesTravauxToFirestore(savedHistorique);
-            } catch (Exception e) {
-                // Log but don't fail the operation
-                System.err.println("Failed to sync historique travaux to Firestore: " + e.getMessage());
-            }
+            // Backend writes to PostgreSQL only - mobile writes to Firestore
+            // Sync is one-way: Firestore → PostgreSQL only
+            // try {
+            //     firebaseSyncService.syncHistoriquesTravauxToFirestore(savedHistorique);
+            // } catch (Exception e) {
+            //     System.err.println("Failed to sync historique travaux to Firestore: " + e.getMessage());
+            // }
 
             return savedHistorique;
         }

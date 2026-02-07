@@ -157,7 +157,7 @@ import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { db } from '@/firebase';
-import { collection, addDoc, getDocs } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { getApiBaseUrl, apiRequest } from '@/config/api';
 import { useRouter } from 'vue-router';
 
@@ -432,6 +432,22 @@ const loadAllReports = async () => {
         { icon: getIconForProblem(signalement.type_probleme) }
       ).addTo(map!);
       
+      // Gérer la date de manière sécurisée
+      let dateStr = 'N/A';
+      try {
+        if (signalement.date_ajoute) {
+          if (typeof signalement.date_ajoute.toDate === 'function') {
+            dateStr = signalement.date_ajoute.toDate().toLocaleDateString('fr-FR');
+          } else if (signalement.date_ajoute instanceof Date) {
+            dateStr = signalement.date_ajoute.toLocaleDateString('fr-FR');
+          } else {
+            dateStr = new Date(signalement.date_ajoute).toLocaleDateString('fr-FR');
+          }
+        }
+      } catch (e) {
+        console.warn('Erreur format date:', e);
+      }
+
       let popupContent = `
         <div style="
           background: linear-gradient(135deg, #1a1a2e, #16213e);
@@ -444,7 +460,7 @@ const loadAllReports = async () => {
           <h4 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600;">${getProblemLabel(signalement.type_probleme)}</h4>
           <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
             <span style="color: rgba(255,255,255,0.5); font-size: 12px;">Surface</span>
-            <span style="font-size: 12px;">${signalement.surface} m²</span>
+            <span style="font-size: 12px;">${signalement.surface || 0} m²</span>
           </div>
           <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
             <span style="color: rgba(255,255,255,0.5); font-size: 12px;">Statut</span>
@@ -452,7 +468,7 @@ const loadAllReports = async () => {
           </div>
           <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
             <span style="color: rgba(255,255,255,0.5); font-size: 12px;">Date</span>
-            <span style="font-size: 12px;">${signalement.date_ajoute.toDate().toLocaleDateString('fr-FR')}</span>
+            <span style="font-size: 12px;">${dateStr}</span>
           </div>
       `;
       
@@ -653,72 +669,373 @@ const submitReport = async () => {
 
 const syncLocalToFirestore = async () => {
   try {
-    // Fetch travaux from local database
     const apiUrl = getApiBaseUrl();
-    const response = await apiRequest(`${apiUrl}/travaux`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch local travaux');
-    }
-    const localTravaux = await response.json();
+    let syncedCount = 0;
+    let updatedCount = 0;
 
-    // Fetch existing travaux from Firestore
-    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
-    const firestoreTravauxIds = new Set();
-    travauxSnapshot.forEach((doc) => {
-      firestoreTravauxIds.add(doc.id);
-    });
+    console.log('🔄 Démarrage synchronisation PostgreSQL → Firestore');
 
-    // Sync travaux that are not in Firestore
-    for (const travail of localTravaux) {
-      if (!firestoreTravauxIds.has(travail.id.toString())) {
-        try {
-          await addDoc(collection(db, 'travaux'), {
-            id_signalement: travail.signalement?.idSignalement?.toString(),
-            id_entreprise: travail.entreprise?.idEntreprise?.toString(),
-            budget: travail.budget ? parseFloat(travail.budget) : null,
-            date_debut_travaux: travail.dateDebutTravaux ? new Date(travail.dateDebutTravaux) : null,
-            date_fin_travaux: travail.dateFinTravaux ? new Date(travail.dateFinTravaux) : null,
-            avancement: travail.avancement ? parseFloat(travail.avancement) : 0
-          });
-          console.log(`Synced travail ${travail.id} to Firestore`);
-        } catch (error) {
-          console.error(`Failed to sync travail ${travail.id}:`, error);
-        }
-      }
-    }
+    // 1. SYNC UTILISATEURS (créés/modifiés par manager)
+    try {
+      const usersResponse = await apiRequest(`${apiUrl}/auth/users`);
+      if (usersResponse.ok) {
+        const localUsers = await usersResponse.json();
+        console.log(`📥 ${localUsers.length} utilisateurs trouvés dans PostgreSQL`);
 
-    // Also sync historiques_travaux
-    const histResponse = await apiRequest(`${apiUrl}/historiques-travaux`);
-    if (histResponse.ok) {
-      const localHistoriques = await histResponse.json();
-      const histSnapshot = await getDocs(collection(db, 'historiques_travaux'));
-      const firestoreHistIds = new Set();
-      histSnapshot.forEach((doc) => {
-        firestoreHistIds.add(doc.id);
-      });
+        for (const user of localUsers) {
+          if (!user.email) continue;
 
-      for (const hist of localHistoriques) {
-        if (!firestoreHistIds.has(hist.id.toString())) {
-          try {
-            await addDoc(collection(db, 'historiques_travaux'), {
-              id_travaux: hist.travaux?.id?.toString(),
-              date_modification: hist.dateModification ? new Date(hist.dateModification) : new Date(),
-              avancement: hist.avancement ? parseFloat(hist.avancement) : null,
-              commentaire: hist.commentaire || ''
+          // Chercher l'utilisateur dans Firestore par email
+          const usersQuery = query(
+            collection(db, 'utilisateurs'),
+            where('email', '==', user.email)
+          );
+          const userSnapshot = await getDocs(usersQuery);
+
+          if (userSnapshot.empty) {
+            // Créer dans Firestore
+            await addDoc(collection(db, 'utilisateurs'), {
+              nom_utilisateur: user.nomUtilisateur || '',
+              email: user.email,
+              role: user.role?.nom || 'UTILISATEUR',
+              est_bloque: user.estBloque || false,
+              date_creation: user.dateCreation ? new Date(user.dateCreation) : new Date(),
+              source_auth: user.sourceAuth || 'local'
             });
-            console.log(`Synced historique ${hist.id} to Firestore`);
-          } catch (error) {
-            console.error(`Failed to sync historique ${hist.id}:`, error);
+            syncedCount++;
+            console.log(`✅ Utilisateur créé: ${user.email}`);
+          } else {
+            // Mettre à jour dans Firestore
+            const docId = userSnapshot.docs[0].id;
+            await updateDoc(doc(db, 'utilisateurs', docId), {
+              nom_utilisateur: user.nomUtilisateur || '',
+              role: user.role?.nom || 'UTILISATEUR',
+              est_bloque: user.estBloque || false,
+              source_auth: user.sourceAuth || 'local'
+            });
+            updatedCount++;
+            console.log(`🔄 Utilisateur mis à jour: ${user.email}`);
           }
         }
       }
+    } catch (error) {
+      console.error('❌ Erreur sync utilisateurs:', error);
     }
 
-    toastMessage.value = 'Synchronisation terminée';
+    // 2. SYNC SIGNALEMENTS (créés/modifiés par manager)
+    try {
+      const sigResponse = await apiRequest(`${apiUrl}/signalements`);
+      if (sigResponse.ok) {
+        const localSignalements = await sigResponse.json();
+        console.log(`📥 ${localSignalements.length} signalements trouvés dans PostgreSQL`);
+
+        for (const sig of localSignalements) {
+          // Vérifier si le signalement a un firestoreId (déjà synchro depuis mobile)
+          if (sig.firestoreId) {
+            // Signalement créé depuis mobile, juste mettre à jour si nécessaire
+            try {
+              const docRef = doc(db, 'signalements', sig.firestoreId);
+              const docSnap = await getDoc(docRef);
+              
+              if (docSnap.exists()) {
+                // Mettre à jour seulement le statut et les infos modifiables
+                await updateDoc(docRef, {
+                  statut: sig.statut || 'non traité',
+                  surface: sig.surface ? parseFloat(sig.surface) : null,
+                  description: sig.description || ''
+                });
+                updatedCount++;
+                console.log(`🔄 Signalement mobile mis à jour: ${sig.firestoreId}`);
+              }
+            } catch (err) {
+              console.warn(`⚠️ Erreur mise à jour signalement ${sig.firestoreId}:`, err);
+            }
+            continue; // Ne pas créer de doublon
+          }
+
+          // Signalement créé par le manager (pas de firestoreId)
+          // Chercher par coordonnées pour éviter doublons
+          const sigQuery = query(
+            collection(db, 'signalements'),
+            where('latitude', '==', parseFloat(sig.latitude)),
+            where('longitude', '==', parseFloat(sig.longitude))
+          );
+          const sigSnapshot = await getDocs(sigQuery);
+
+          const sigData = {
+            id_signalement: sig.idSignalement?.toString(),
+            type_probleme: sig.typeProbleme || '',
+            description: sig.description || '',
+            latitude: sig.latitude ? parseFloat(sig.latitude) : null,
+            longitude: sig.longitude ? parseFloat(sig.longitude) : null,
+            surface: sig.surface ? parseFloat(sig.surface) : null,
+            statut: sig.statut || 'non traité',
+            photos: sig.photos || [],
+            date_ajoute: sig.dateSignalement ? new Date(sig.dateSignalement) : new Date(),
+            Id_User: sig.utilisateur?.idUtilisateur?.toString() || 'manager'
+          };
+
+          if (sigSnapshot.empty) {
+            // Créer dans Firestore seulement si vraiment nouveau
+            await addDoc(collection(db, 'signalements'), sigData);
+            syncedCount++;
+            console.log(`✅ Signalement manager créé: ${sig.idSignalement}`);
+          } else {
+            // Mettre à jour dans Firestore
+            const docId = sigSnapshot.docs[0].id;
+            await updateDoc(doc(db, 'signalements', docId), sigData);
+            updatedCount++;
+            console.log(`🔄 Signalement existant mis à jour: ${sig.idSignalement}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur sync signalements:', error);
+    }
+
+    // 3. SYNC TRAVAUX (créés/modifiés par manager offline)
+    try {
+      console.log('🔄 Début sync TRAVAUX...');
+      const travauxResponse = await apiRequest(`${apiUrl}/travaux`);
+      if (travauxResponse.ok) {
+        const localTravaux = await travauxResponse.json();
+        console.log(`📥 ${localTravaux.length} travaux trouvés dans PostgreSQL`);
+        console.log('Travaux détails:', JSON.stringify(localTravaux, null, 2));
+
+        for (const travail of localTravaux) {
+          if (!travail.signalement?.idSignalement) {
+            console.warn('⚠️ Travail sans signalement, skip:', travail.id);
+            continue;
+          }
+
+          let firestoreSignalementId = null;
+
+          // STRATÉGIE 0: Si le signalement PostgreSQL a déjà un firestoreId, l'utiliser directement
+          if (travail.signalement.firestoreId) {
+            firestoreSignalementId = travail.signalement.firestoreId;
+            console.log(`✅ Utilisation firestoreId depuis PostgreSQL: ${firestoreSignalementId}`);
+            
+            // Vérifier que le document existe toujours dans Firestore
+            const docRef = doc(db, 'signalements', firestoreSignalementId);
+            const docSnap = await getDoc(docRef);
+            if (!docSnap.exists()) {
+              console.warn(`⚠️ Document Firestore ${firestoreSignalementId} n'existe plus, recherche nécessaire`);
+              firestoreSignalementId = null;
+            }
+          }
+
+          // Si pas de firestoreId ou document inexistant, chercher par d'autres méthodes
+          if (!firestoreSignalementId) {
+            // Récupérer le signalement complet depuis PostgreSQL pour avoir les coordonnées
+            console.log(`🔍 Récupération signalement PostgreSQL ID: ${travail.signalement.idSignalement}`);
+            const sigPgResponse = await apiRequest(`${apiUrl}/signalements/${travail.signalement.idSignalement}`);
+            if (!sigPgResponse.ok) {
+              console.warn(`⚠️ Signalement PostgreSQL non trouvé: ${travail.signalement.idSignalement}`);
+              continue;
+            }
+            const sigPg = await sigPgResponse.json();
+            console.log(`✅ Signalement PostgreSQL récupéré:`, sigPg);
+
+            // STRATÉGIE 1: Chercher par id_signalement (si le signalement vient du manager)
+            const sigQueryById = query(
+              collection(db, 'signalements'),
+              where('id_signalement', '==', travail.signalement.idSignalement.toString())
+            );
+            const sigSnapshotById = await getDocs(sigQueryById);
+            
+            if (!sigSnapshotById.empty) {
+              firestoreSignalementId = sigSnapshotById.docs[0].id;
+              console.log(`✅ Signalement trouvé par id_signalement: ${firestoreSignalementId}`);
+            } else {
+              // STRATÉGIE 2: Chercher par coordonnées (si le signalement vient du mobile)
+              console.log(`🔍 Recherche par coordonnées: lat=${sigPg.latitude}, lng=${sigPg.longitude}`);
+              const sigQueryByCoords = query(
+                collection(db, 'signalements'),
+                where('latitude', '==', parseFloat(sigPg.latitude)),
+                where('longitude', '==', parseFloat(sigPg.longitude))
+              );
+              const sigSnapshotByCoords = await getDocs(sigQueryByCoords);
+              
+              if (!sigSnapshotByCoords.empty) {
+                firestoreSignalementId = sigSnapshotByCoords.docs[0].id;
+                console.log(`✅ Signalement trouvé par coordonnées: ${firestoreSignalementId}`);
+                
+                // Ajouter l'id_signalement au document Firestore pour les futures syncs
+                await updateDoc(doc(db, 'signalements', firestoreSignalementId), {
+                  id_signalement: travail.signalement.idSignalement.toString()
+                });
+                console.log(`🔄 id_signalement ajouté au document Firestore`);
+              } else {
+                console.warn(`⚠️ Signalement Firestore non trouvé (ni par ID ni par coordonnées)`);
+                continue;
+              }
+            }
+          }
+
+          // Chercher si des travaux existent déjà pour ce signalement Firestore
+          console.log(`🔍 Recherche travaux Firestore pour signalement: ${firestoreSignalementId}`);
+          const travauxQuery = query(
+            collection(db, 'travaux'),
+            where('id_signalement', '==', firestoreSignalementId)
+          );
+          const travauxSnapshot = await getDocs(travauxQuery);
+          console.log(`📊 Travaux trouvés dans Firestore: ${travauxSnapshot.docs.length}`);
+
+          const travauxData = {
+            id_signalement: firestoreSignalementId, // ID Firestore du document signalement
+            id_entreprise: travail.entreprise?.idEntreprise?.toString() || '',
+            budget: travail.budget ? parseFloat(travail.budget) : 0,
+            date_debut_travaux: travail.dateDebutTravaux ? new Date(travail.dateDebutTravaux) : new Date(),
+            date_fin_travaux: travail.dateFinTravaux ? new Date(travail.dateFinTravaux) : new Date(),
+            avancement: travail.avancement ? parseFloat(travail.avancement) : 0
+          };
+          console.log(`📝 Données travaux à synchroniser:`, travauxData);
+
+          if (travauxSnapshot.empty) {
+            // Créer dans Firestore
+            console.log(`➕ Création nouveau travail dans Firestore...`);
+            try {
+              const docRef = await addDoc(collection(db, 'travaux'), travauxData);
+              console.log(`✅ Travail créé dans Firestore: ${docRef.id}`);
+              syncedCount++;
+            } catch (error) {
+              console.error(`❌ Erreur création travail:`, error);
+            }
+          } else {
+            // Mettre à jour dans Firestore
+            console.log(`🔄 Mise à jour travail existant dans Firestore...`);
+            try {
+              const docId = travauxSnapshot.docs[0].id;
+              await updateDoc(doc(db, 'travaux', docId), travauxData);
+              console.log(`✅ Travail mis à jour dans Firestore: ${docId}`);
+              updatedCount++;
+            } catch (error) {
+              console.error(`❌ Erreur mise à jour travail:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur sync travaux:', error);
+    }
+
+    // 4. SYNC HISTORIQUES_TRAVAUX
+    console.log('🔄 Début sync HISTORIQUES...');
+    try {
+      const histResponse = await apiRequest(`${apiUrl}/travaux/historiques`);
+      if (histResponse.ok) {
+        const localHistoriques = await histResponse.json();
+        console.log(`📥 ${localHistoriques.length} historiques trouvés dans PostgreSQL`);
+        console.log('Historiques détails:', JSON.stringify(localHistoriques, null, 2));
+
+        // Récupérer tous les travaux de Firestore pour faire le mapping
+        console.log(`🔍 Récupération de tous les travaux Firestore...`);
+        const allTravauxFs = await getDocs(collection(db, 'travaux'));
+        console.log(`📊 Travaux Firestore trouvés: ${allTravauxFs.docs.length}`);
+        
+        const travauxMapping = new Map(); // Map: signalement_id_firestore -> travaux_id_firestore
+        
+        allTravauxFs.forEach(travauxDoc => {
+          const data = travauxDoc.data();
+          travauxMapping.set(data.id_signalement, travauxDoc.id);
+          console.log(`📌 Mapping: signalement ${data.id_signalement} -> travail ${travauxDoc.id}`);
+        });
+
+        for (const hist of localHistoriques) {
+          console.log(`🔍 Traitement historique PostgreSQL ID: ${hist.id}`);
+          
+          if (!hist.travaux?.signalement?.idSignalement) {
+            console.warn('⚠️ Historique sans signalement dans travaux, skip:', hist.id);
+            continue;
+          }
+
+          let firestoreSignalementId = null;
+
+          // STRATÉGIE 0: Utiliser firestoreId depuis PostgreSQL si disponible
+          if (hist.travaux.signalement.firestoreId) {
+            firestoreSignalementId = hist.travaux.signalement.firestoreId;
+            console.log(`✅ Utilisation firestoreId depuis PostgreSQL: ${firestoreSignalementId}`);
+          } else {
+            // Trouver le signalement Firestore correspondant par id_signalement
+            const signalementPgId = hist.travaux.signalement.idSignalement;
+            console.log(`🔍 Recherche signalement Firestore pour PG ID: ${signalementPgId}`);
+            const sigQuery = query(
+              collection(db, 'signalements'),
+              where('id_signalement', '==', signalementPgId.toString())
+            );
+            const sigSnapshot = await getDocs(sigQuery);
+            
+            if (sigSnapshot.empty) {
+              console.warn(`⚠️ Signalement Firestore non trouvé pour historique (id_signalement=${signalementPgId})`);
+              continue;
+            }
+            
+            firestoreSignalementId = sigSnapshot.docs[0].id;
+            console.log(`✅ Signalement Firestore trouvé: ${firestoreSignalementId}`);
+          }
+          
+          // Trouver le travail Firestore correspondant via le mapping
+          const firestoreTravauxId = travauxMapping.get(firestoreSignalementId);
+          console.log(`🔍 Recherche travail via mapping pour signalement: ${firestoreSignalementId}`);
+          
+          if (!firestoreTravauxId) {
+            console.warn(`⚠️ Travail Firestore non trouvé pour signalement: ${firestoreSignalementId}`);
+            continue;
+          }
+          console.log(`✅ Travail Firestore trouvé: ${firestoreTravauxId}`);
+
+          // Chercher l'historique par postgres_id
+          console.log(`🔍 Recherche historique existant pour postgres_id: ${hist.id}`);
+          const histQuery = query(
+            collection(db, 'historiques_travaux'),
+            where('postgres_id', '==', hist.id?.toString())
+          );
+          const histSnapshot = await getDocs(histQuery);
+          console.log(`📊 Historiques trouvés dans Firestore: ${histSnapshot.docs.length}`);
+
+          const histData = {
+            postgres_id: hist.id?.toString(),
+            id_travaux: firestoreTravauxId, // ID Firestore du document travaux
+            date_modification: hist.dateModification ? new Date(hist.dateModification) : new Date(),
+            avancement: hist.avancement ? parseFloat(hist.avancement) : 0,
+            commentaire: hist.commentaire || ''
+          };
+          console.log(`📝 Données historique à synchroniser:`, histData);
+
+          if (histSnapshot.empty) {
+            // Créer dans Firestore
+            console.log(`➕ Création nouvel historique dans Firestore...`);
+            try {
+              const docRef = await addDoc(collection(db, 'historiques_travaux'), histData);
+              console.log(`✅ Historique créé dans Firestore: ${docRef.id}`);
+              syncedCount++;
+            } catch (error) {
+              console.error(`❌ Erreur création historique:`, error);
+            }
+          } else {
+            // Mettre à jour dans Firestore
+            console.log(`🔄 Mise à jour historique existant dans Firestore...`);
+            try {
+              const docId = histSnapshot.docs[0].id;
+              await updateDoc(doc(db, 'historiques_travaux', docId), histData);
+              console.log(`✅ Historique mis à jour dans Firestore: ${docId}`);
+              updatedCount++;
+            } catch (error) {
+              console.error(`❌ Erreur mise à jour historique:`, error);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur sync historiques:', error);
+    }
+
+    console.log(`✅ Synchronisation terminée: ${syncedCount} créés, ${updatedCount} mis à jour`);
+    toastMessage.value = `✅ Sync terminée: ${syncedCount} créés, ${updatedCount} mis à jour`;
     showToast.value = true;
   } catch (error: any) {
-    console.error('Erreur lors de la synchronisation:', error);
-    toastMessage.value = `Erreur de synchronisation: ${error.message || 'Connexion bloquée'}`;
+    console.error('❌ Erreur lors de la synchronisation:', error);
+    toastMessage.value = `❌ Erreur: ${error.message || 'Connexion bloquée'}`;
     showToast.value = true;
   }
 };
