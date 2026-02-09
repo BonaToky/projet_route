@@ -4,7 +4,7 @@
       <ion-toolbar style="--background: transparent;">
       </ion-toolbar>
     </ion-header>
-    <ion-content :fullscreen="true" class="login-page">
+    <ion-content :fullscreen="true" class="login-page" :scroll-y="false">
       <div class="login-container">
         <div class="gradient-orb orb-1"></div>
         <div class="gradient-orb orb-2"></div>
@@ -513,7 +513,7 @@ const logout = () => {
 }
 
 .login-container {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -569,15 +569,17 @@ const logout = () => {
   backdrop-filter: blur(20px);
   border: 1px solid #e2e8f0;
   border-radius: 24px;
-  padding: 40px 30px;
+  padding: 32px 24px;
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 36px;
+  margin-bottom: 24px;
 }
 
 .logo-icon {
@@ -641,7 +643,7 @@ const logout = () => {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .input-group {

@@ -1,85 +1,116 @@
 <template>
   <ion-page>
     <ion-header class="ion-no-border">
-      <ion-toolbar class="custom-toolbar">
-        <ion-title>Mes signalements</ion-title>
+      <ion-toolbar class="page-toolbar">
+        <ion-title>Signalements</ion-title>
         <ion-buttons slot="end">
-          <ion-button @click="refreshReports" class="refresh-btn">
-            <ion-icon :icon="refresh" />
+          <ion-button @click="refreshReports" class="header-action-btn">
+            <ion-icon :icon="refreshOutline" />
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
-    <ion-content :fullscreen="true" class="signalements-page">
-      <!-- Stats Header -->
-      <div class="stats-header">
-        <div class="stat-item">
-          <span class="stat-value">{{ reports.length }}</span>
-          <span class="stat-label">Total</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ getEnCoursCount }}</span>
-          <span class="stat-label">En cours</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat-item">
-          <span class="stat-value">{{ getTraiteCount }}</span>
-          <span class="stat-label">Traités</span>
-        </div>
-      </div>
 
-      <!-- Liste des signalements -->
-      <div class="reports-list" v-if="reports.length > 0">
-        <div v-for="report in reports" :key="report.id" class="report-card" @click="openReportDetail(report)">
-          <div class="report-header">
-            <div class="report-icon" :class="getIconClass(report.type_probleme)">
-              {{ getIconEmoji(report.type_probleme) }}
+    <ion-content :fullscreen="true" class="page-bg">
+      <!-- Pull to refresh -->
+      <ion-refresher slot="fixed" @ionRefresh="handleRefresh($event)">
+        <ion-refresher-content />
+      </ion-refresher>
+
+      <div class="page-content">
+        <!-- Mini KPI row -->
+        <div class="kpi-row">
+          <div class="kpi-mini">
+            <div class="kpi-mini-icon blue">
+              <ion-icon :icon="locationOutline" />
             </div>
-            <div class="report-info">
-              <h3 class="report-title">{{ getProblemLabel(report.type_probleme) }}</h3>
-              <span class="report-date">{{ formatDate(report.date_ajoute) }}</span>
-            </div>
-            <div class="report-status" :class="getStatusClass(report.statut)">
-              {{ report.statut || 'Non traité' }}
+            <div class="kpi-mini-body">
+              <span class="kpi-mini-value">{{ reports.length }}</span>
+              <span class="kpi-mini-label">Total</span>
             </div>
           </div>
-          
-          <p class="report-description">{{ report.description || 'Aucune description' }}</p>
-          
-          <div class="report-details">
-            <div class="detail-item">
-              <span class="detail-icon">📐</span>
-              <span class="detail-value">{{ report.surface }} m²</span>
+          <div class="kpi-mini">
+            <div class="kpi-mini-icon amber">
+              <ion-icon :icon="timerOutline" />
             </div>
-            <div class="detail-item" v-if="report.travaux">
-              <span class="detail-icon">💰</span>
-              <span class="detail-value">{{ report.travaux.budget?.toLocaleString() || 0 }} Ar</span>
+            <div class="kpi-mini-body">
+              <span class="kpi-mini-value">{{ getEnCoursCount }}</span>
+              <span class="kpi-mini-label">En cours</span>
             </div>
           </div>
-
-          <!-- Progress bar si travaux en cours -->
-          <div v-if="report.travaux" class="progress-section">
-            <div class="progress-header">
-              <span class="progress-label">🏗️ Travaux</span>
-              <span class="progress-value">{{ report.travaux.avancement || 0 }}%</span>
+          <div class="kpi-mini">
+            <div class="kpi-mini-icon green">
+              <ion-icon :icon="checkmarkDoneOutline" />
             </div>
-            <div class="progress-bar">
-              <div class="progress-fill" :style="{ width: (report.travaux.avancement || 0) + '%' }"></div>
+            <div class="kpi-mini-body">
+              <span class="kpi-mini-value">{{ getTraiteCount }}</span>
+              <span class="kpi-mini-label">Traités</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Empty state -->
-      <div v-else class="empty-state">
-        <div class="empty-icon">📭</div>
-        <h3>Aucun signalement</h3>
-        <p>Vous n'avez pas encore effectué de signalement.</p>
-        <ion-button class="add-btn" router-link="/tabs/tab2">
-          <ion-icon :icon="add" slot="start" />
-          Signaler un problème
-        </ion-button>
+        <!-- Reports list -->
+        <div class="reports-list" v-if="reports.length > 0">
+          <div v-for="report in reports" :key="report.id" class="report-card" @click="openReportDetail(report)">
+            <div class="report-row">
+              <div class="report-type-icon" :class="getIconColorClass(report.type_probleme)">
+                <ion-icon :icon="getTypeIcon(report.type_probleme)" />
+              </div>
+              <div class="report-body">
+                <div class="report-title">{{ getProblemLabel(report.type_probleme) }}</div>
+                <div class="report-date">{{ formatDate(report.date_ajoute) }}</div>
+              </div>
+              <div class="report-badge" :class="getStatusClass(report.statut)">
+                <div class="badge-dot"></div>
+                <span>{{ getStatusLabel(report.statut) }}</span>
+              </div>
+            </div>
+
+            <p class="report-desc" v-if="report.description">{{ report.description }}</p>
+
+            <div class="report-meta">
+              <div class="meta-chip">
+                <ion-icon :icon="resizeOutline" />
+                <span>{{ report.surface || 0 }} m²</span>
+              </div>
+              <div class="meta-chip" v-if="report.travaux">
+                <ion-icon :icon="walletOutline" />
+                <span>{{ formatBudget(report.travaux.budget) }}</span>
+              </div>
+              <div class="meta-chip" v-if="report.travaux">
+                <ion-icon :icon="constructOutline" />
+                <span>{{ report.travaux.avancement || 0 }}%</span>
+              </div>
+            </div>
+
+            <!-- Progress bar if travaux -->
+            <div v-if="report.travaux" class="report-progress">
+              <div class="progress-bar-bg">
+                <div 
+                  class="progress-bar-fill"
+                  :class="getProgressClass(report.travaux.avancement || 0)"
+                  :style="{ width: (report.travaux.avancement || 0) + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else class="empty-state">
+          <div class="empty-icon-wrap">
+            <ion-icon :icon="folderOpenOutline" />
+          </div>
+          <h3>Aucun signalement</h3>
+          <p>Vous n'avez pas encore effectué de signalement.</p>
+          <ion-button class="empty-action-btn" router-link="/tabs/tab2">
+            <ion-icon :icon="addOutline" slot="start" />
+            Signaler un problème
+          </ion-button>
+        </div>
+
+        <!-- Bottom spacer -->
+        <div style="height: 100px;"></div>
       </div>
 
       <ion-toast
@@ -92,62 +123,82 @@
       />
 
       <!-- Detail Modal -->
-      <ion-modal :is-open="showDetailModal" @will-dismiss="showDetailModal = false" class="custom-modal">
+      <ion-modal :is-open="showDetailModal" @will-dismiss="showDetailModal = false" class="detail-modal">
         <ion-header class="ion-no-border">
           <ion-toolbar class="modal-toolbar">
-            <ion-title>Détails du signalement</ion-title>
+            <ion-title>Détails</ion-title>
             <ion-buttons slot="end">
               <ion-button @click="showDetailModal = false">
-                <ion-icon :icon="close" />
+                <ion-icon :icon="closeOutline" />
               </ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
-        <ion-content class="modal-content" v-if="selectedReport">
-          <div class="detail-container">
-            <div class="detail-header">
-              <div class="detail-icon-large" :class="getIconClass(selectedReport.type_probleme)">
-                {{ getIconEmoji(selectedReport.type_probleme) }}
+        <ion-content class="modal-body" v-if="selectedReport">
+          <div class="modal-inner">
+            <!-- Hero header -->
+            <div class="modal-hero">
+              <div class="modal-hero-icon" :class="getIconColorClass(selectedReport.type_probleme)">
+                <ion-icon :icon="getTypeIcon(selectedReport.type_probleme)" />
               </div>
-              <h2>{{ getProblemLabel(selectedReport.type_probleme) }}</h2>
-            </div>
-
-            <div class="detail-card">
-              <div class="detail-row">
-                <span class="label">Statut</span>
-                <span class="value status" :class="getStatusClass(selectedReport.statut)">{{ selectedReport.statut || 'Non traité' }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Date</span>
-                <span class="value">{{ formatDate(selectedReport.date_ajoute) }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Surface</span>
-                <span class="value">{{ selectedReport.surface }} m²</span>
-              </div>
-              <div class="detail-row">
-                <span class="label">Coordonnées</span>
-                <span class="value">{{ selectedReport.latitude?.toFixed(4) }}, {{ selectedReport.longitude?.toFixed(4) }}</span>
+              <div class="modal-hero-title">{{ getProblemLabel(selectedReport.type_probleme) }}</div>
+              <div class="modal-hero-badge" :class="getStatusClass(selectedReport.statut)">
+                <div class="badge-dot"></div>
+                <span>{{ getStatusLabel(selectedReport.statut) }}</span>
               </div>
             </div>
 
-            <div class="description-card" v-if="selectedReport.description">
-              <h4>Description</h4>
-              <p>{{ selectedReport.description }}</p>
+            <!-- Info section -->
+            <div class="section-card">
+              <div class="section-header">
+                <ion-icon :icon="informationCircleOutline" class="section-icon" />
+                <span>Informations</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Date</span>
+                <span class="info-value">{{ formatDate(selectedReport.date_ajoute) }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Surface</span>
+                <span class="info-value">{{ selectedReport.surface || 0 }} m²</span>
+              </div>
+              <div class="info-row last">
+                <span class="info-label">Coordonnées</span>
+                <span class="info-value">{{ selectedReport.latitude?.toFixed(4) }}, {{ selectedReport.longitude?.toFixed(4) }}</span>
+              </div>
             </div>
 
-            <div class="travaux-card" v-if="selectedReport.travaux">
-              <h4>🏗️ Informations des travaux</h4>
-              <div class="detail-row">
-                <span class="label">Budget</span>
-                <span class="value">{{ selectedReport.travaux.budget?.toLocaleString() || 0 }} Ar</span>
+            <!-- Description -->
+            <div class="section-card" v-if="selectedReport.description">
+              <div class="section-header">
+                <ion-icon :icon="documentTextOutline" class="section-icon" />
+                <span>Description</span>
               </div>
-              <div class="detail-row">
-                <span class="label">Avancement</span>
-                <span class="value">{{ selectedReport.travaux.avancement || 0 }}%</span>
+              <p class="description-text">{{ selectedReport.description }}</p>
+            </div>
+
+            <!-- Travaux -->
+            <div class="section-card" v-if="selectedReport.travaux">
+              <div class="section-header">
+                <ion-icon :icon="constructOutline" class="section-icon" />
+                <span>Travaux</span>
               </div>
-              <div class="progress-bar large">
-                <div class="progress-fill" :style="{ width: (selectedReport.travaux.avancement || 0) + '%' }"></div>
+              <div class="info-row">
+                <span class="info-label">Budget</span>
+                <span class="info-value">{{ selectedReport.travaux.budget?.toLocaleString() || 0 }} Ar</span>
+              </div>
+              <div class="info-row last">
+                <span class="info-label">Avancement</span>
+                <span class="info-value highlight">{{ selectedReport.travaux.avancement || 0 }}%</span>
+              </div>
+              <div class="modal-progress">
+                <div class="progress-bar-bg large">
+                  <div 
+                    class="progress-bar-fill"
+                    :class="getProgressClass(selectedReport.travaux.avancement || 0)"
+                    :style="{ width: (selectedReport.travaux.avancement || 0) + '%' }"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
@@ -159,8 +210,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonToast, IonButton, IonButtons, IonIcon, IonModal } from '@ionic/vue';
-import { refresh, add, close } from 'ionicons/icons';
+import { 
+  IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonToast, IonButton, 
+  IonButtons, IonIcon, IonModal, IonRefresher, IonRefresherContent 
+} from '@ionic/vue';
+import { 
+  refreshOutline, addOutline, closeOutline, locationOutline, timerOutline,
+  checkmarkDoneOutline, resizeOutline, walletOutline, constructOutline,
+  folderOpenOutline, informationCircleOutline, documentTextOutline,
+  warningOutline, waterOutline, flashOutline, flagOutline, ellipseOutline, navigateOutline
+} from 'ionicons/icons';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
 
@@ -209,6 +268,15 @@ onMounted(() => {
   fetchReports(user.id);
 });
 
+const handleRefresh = async (event: any) => {
+  const userStr = localStorage.getItem('currentUser');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    await fetchReports(user.id);
+  }
+  event.target.complete();
+};
+
 const refreshReports = () => {
   const userStr = localStorage.getItem('currentUser');
   if (!userStr) return;
@@ -254,8 +322,15 @@ const formatDate = (timestamp: any) => {
   return 'Date inconnue';
 };
 
+const formatBudget = (value?: number): string => {
+  if (!value) return '0 Ar';
+  if (value >= 1000000) return (value / 1000000).toFixed(1).replace('.0', '') + 'M Ar';
+  if (value >= 1000) return (value / 1000).toFixed(0) + 'K Ar';
+  return value.toLocaleString() + ' Ar';
+};
+
 const getProblemLabel = (type?: string) => {
-  const labels: { [key: string]: string } = {
+  const labels: Record<string, string> = {
     'nid-de-poule': 'Nid de poule',
     'route-inondee': 'Route inondée',
     'route-endommagee': 'Route endommagée',
@@ -266,34 +341,47 @@ const getProblemLabel = (type?: string) => {
   return labels[type || ''] || 'Problème routier';
 };
 
-const getIconEmoji = (type?: string) => {
-  const icons: { [key: string]: string } = {
-    'nid-de-poule': '🕳️',
-    'route-inondee': '🌊',
-    'route-endommagee': '⚠️',
-    'signalisation-manquante': '🚧',
-    'eclairage-defectueux': '💡',
-    'autre': '📍',
+const getTypeIcon = (type?: string) => {
+  const icons: Record<string, any> = {
+    'nid-de-poule': ellipseOutline,
+    'route-inondee': waterOutline,
+    'route-endommagee': warningOutline,
+    'signalisation-manquante': flagOutline,
+    'eclairage-defectueux': flashOutline,
+    'autre': navigateOutline,
   };
-  return icons[type || ''] || '📍';
+  return icons[type || ''] || navigateOutline;
 };
 
-const getIconClass = (type?: string) => {
-  const classes: { [key: string]: string } = {
-    'nid-de-poule': 'red',
-    'route-inondee': 'blue',
-    'route-endommagee': 'orange',
-    'signalisation-manquante': 'yellow',
-    'eclairage-defectueux': 'purple',
-    'autre': 'gray',
+const getIconColorClass = (type?: string) => {
+  const classes: Record<string, string> = {
+    'nid-de-poule': 'icon-red',
+    'route-inondee': 'icon-blue',
+    'route-endommagee': 'icon-orange',
+    'signalisation-manquante': 'icon-amber',
+    'eclairage-defectueux': 'icon-purple',
+    'autre': 'icon-gray',
   };
-  return classes[type || ''] || 'gray';
+  return classes[type || ''] || 'icon-gray';
 };
 
 const getStatusClass = (statut?: string) => {
-  if (!statut || statut === 'nouveau') return 'pending';
-  if (statut === 'terminé') return 'completed';
-  return 'in-progress';
+  if (!statut || statut === 'nouveau' || statut === 'non traité') return 'status-pending';
+  if (statut === 'terminé') return 'status-done';
+  return 'status-progress';
+};
+
+const getStatusLabel = (statut?: string) => {
+  if (!statut || statut === 'nouveau' || statut === 'non traité') return 'Non traité';
+  if (statut === 'terminé') return 'Traité';
+  if (statut === 'en cours') return 'En cours';
+  return statut;
+};
+
+const getProgressClass = (value: number): string => {
+  if (value >= 75) return 'progress-high';
+  if (value >= 40) return 'progress-mid';
+  return 'progress-low';
 };
 
 const openReportDetail = (report: Report) => {
@@ -303,337 +391,423 @@ const openReportDetail = (report: Report) => {
 </script>
 
 <style scoped>
-.signalements-page {
-  --background: #f8fafc;
+/* ---- Base ---- */
+.page-bg {
+  --background: #f1f5f9;
 }
 
-.custom-toolbar {
-  --background: linear-gradient(135deg, #1e3a5f, #2563eb);
+.page-toolbar {
+  --background: #1e3a5f;
   --color: white;
   --border-width: 0;
 }
 
-.custom-toolbar ion-title {
+.page-toolbar ion-title {
   font-weight: 600;
+  font-size: 17px;
 }
 
-.refresh-btn {
-  --color: white;
+.header-action-btn {
+  --color: rgba(255, 255, 255, 0.85);
 }
 
-.stats-header {
+.header-action-btn ion-icon {
+  font-size: 20px;
+}
+
+.page-content {
+  padding: 16px;
+}
+
+/* ---- KPI Row ---- */
+.kpi-row {
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  padding: 20px;
-  background: white;
-  margin: 16px;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  gap: 10px;
+  margin-bottom: 16px;
 }
 
-.stat-item {
+.kpi-mini {
+  flex: 1;
+  background: white;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+.kpi-mini-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kpi-mini-icon ion-icon {
+  font-size: 17px;
+  color: white;
+}
+
+.kpi-mini-icon.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.kpi-mini-icon.amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.kpi-mini-icon.green { background: linear-gradient(135deg, #10b981, #059669); }
+
+.kpi-mini-body {
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
-.stat-value {
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e3a5f;
+.kpi-mini-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
 }
 
-.stat-label {
-  font-size: 12px;
+.kpi-mini-label {
+  font-size: 11px;
   color: #64748b;
-  margin-top: 4px;
+  font-weight: 500;
+  margin-top: 2px;
 }
 
-.stat-divider {
-  width: 1px;
-  height: 40px;
-  background: #e2e8f0;
-}
-
+/* ---- Report Cards ---- */
 .reports-list {
-  padding: 0 16px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .report-card {
   background: white;
   border-radius: 16px;
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.report-header {
+.report-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
-.report-icon {
-  width: 44px;
-  height: 44px;
+.report-type-icon {
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  flex-shrink: 0;
 }
 
-.report-icon.red { background: rgba(239, 68, 68, 0.15); }
-.report-icon.blue { background: rgba(59, 130, 246, 0.15); }
-.report-icon.orange { background: rgba(249, 115, 22, 0.15); }
-.report-icon.yellow { background: rgba(234, 179, 8, 0.15); }
-.report-icon.purple { background: rgba(139, 92, 246, 0.15); }
-.report-icon.gray { background: rgba(107, 114, 128, 0.15); }
+.report-type-icon ion-icon {
+  font-size: 20px;
+  color: white;
+}
 
-.report-info {
+.report-type-icon.icon-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.report-type-icon.icon-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.report-type-icon.icon-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+.report-type-icon.icon-amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.report-type-icon.icon-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.report-type-icon.icon-gray { background: linear-gradient(135deg, #6b7280, #4b5563); }
+
+.report-body {
   flex: 1;
+  min-width: 0;
 }
 
 .report-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: #1e3a5f;
-  margin: 0;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .report-date {
   font-size: 12px;
   color: #94a3b8;
+  margin-top: 1px;
 }
 
-.report-status {
+/* ---- Status Badge ---- */
+.report-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 10px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 11px;
-  font-weight: 500;
-}
-
-.report-status.pending {
-  background: rgba(234, 179, 8, 0.15);
-  color: #eab308;
-}
-
-.report-status.in-progress {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-}
-
-.report-status.completed {
-  background: rgba(52, 211, 153, 0.15);
-  color: #34d399;
-}
-
-.report-description {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-}
-
-.report-details {
-  display: flex;
-  gap: 16px;
-}
-
-.detail-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: #475569;
-}
-
-.detail-icon {
-  font-size: 14px;
-}
-
-.progress-section {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.progress-label {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.progress-value {
-  font-size: 13px;
   font-weight: 600;
-  color: #3b82f6;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.progress-bar {
-  height: 6px;
-  background: #e2e8f0;
-  border-radius: 3px;
+.badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.report-badge.status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.report-badge.status-pending .badge-dot { background: #f59e0b; }
+.report-badge.status-progress { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.report-badge.status-progress .badge-dot { background: #3b82f6; }
+.report-badge.status-done { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.report-badge.status-done .badge-dot { background: #10b981; }
+
+/* ---- Description ---- */
+.report-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 10px 0 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.progress-bar.large {
-  height: 8px;
+/* ---- Meta chips ---- */
+.report-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.meta-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.meta-chip ion-icon {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* ---- Progress ---- */
+.report-progress {
+  margin-top: 10px;
+}
+
+.progress-bar-bg {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-bar-bg.large {
+  height: 10px;
   margin-top: 12px;
 }
 
-.progress-fill {
+.progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #1e3a5f, #3b82f6);
-  border-radius: 3px;
-  transition: width 0.3s ease;
+  border-radius: 999px;
+  transition: width 0.6s ease;
 }
 
+.progress-bar-fill.progress-low { background: linear-gradient(90deg, #ef4444, #f97316); }
+.progress-bar-fill.progress-mid { background: linear-gradient(90deg, #f59e0b, #eab308); }
+.progress-bar-fill.progress-high { background: linear-gradient(90deg, #10b981, #059669); }
+
+/* ---- Empty State ---- */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 60px 24px;
   text-align: center;
 }
 
-.empty-icon {
-  font-size: 60px;
+.empty-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(30, 58, 95, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 16px;
 }
 
+.empty-icon-wrap ion-icon {
+  font-size: 32px;
+  color: #3b82f6;
+}
+
 .empty-state h3 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1e3a5f;
-  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
 }
 
 .empty-state p {
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
-  margin: 0 0 24px 0;
+  margin: 0 0 20px;
 }
 
-.add-btn {
+.empty-action-btn {
   --background: linear-gradient(135deg, #1e3a5f, #3b82f6);
   --border-radius: 12px;
-  --box-shadow: 0 10px 30px -10px rgba(30, 58, 95, 0.5);
+  --box-shadow: 0 8px 20px rgba(30, 58, 95, 0.3);
+  height: 44px;
+  font-weight: 600;
+  font-size: 14px;
 }
 
-/* Modal styles */
-.custom-modal {
+/* ---- Detail Modal ---- */
+.detail-modal {
   --background: transparent;
 }
 
-.custom-modal::part(content) {
-  background: white;
+.detail-modal::part(content) {
+  background: #f1f5f9;
   border-radius: 20px 20px 0 0;
-  border-top: 1px solid #e2e8f0;
 }
 
 .modal-toolbar {
-  --background: linear-gradient(135deg, #1e3a5f, #3b82f6);
+  --background: #1e3a5f;
   --color: white;
   --border-width: 0;
 }
 
-.modal-content {
-  --background: white;
+.modal-toolbar ion-title {
+  font-weight: 600;
+  font-size: 17px;
 }
 
-.detail-container {
-  padding: 20px;
+.modal-body {
+  --background: #f1f5f9;
 }
 
-.detail-header {
+.modal-inner {
+  padding: 16px;
+}
+
+/* Modal hero */
+.modal-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-bottom: 24px;
+  padding: 20px 0 16px;
 }
 
-.detail-icon-large {
-  width: 64px;
-  height: 64px;
+.modal-hero-icon {
+  width: 56px;
+  height: 56px;
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
   margin-bottom: 12px;
 }
 
-.detail-header h2 {
-  color: #1e3a5f;
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+.modal-hero-icon ion-icon {
+  font-size: 26px;
+  color: white;
 }
 
-.detail-card,
-.description-card,
-.travaux-card {
-  background: #f8fafc;
+.modal-hero-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.modal-hero-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Section card (same as stats) */
+.section-card {
+  background: white;
   border-radius: 16px;
   padding: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
 }
 
-.detail-row {
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.section-icon {
+  font-size: 18px;
+  color: #3b82f6;
+}
+
+/* Info rows */
+.info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
-.detail-row:last-child {
+.info-row.last {
   border-bottom: none;
 }
 
-.detail-row .label {
+.info-label {
   font-size: 13px;
   color: #64748b;
 }
 
-.detail-row .value {
+.info-value {
   font-size: 14px;
-  color: #1e3a5f;
-  font-weight: 500;
-}
-
-.detail-row .value.status {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-}
-
-.description-card h4,
-.travaux-card h4 {
-  color: #1e3a5f;
-  font-size: 14px;
+  color: #0f172a;
   font-weight: 600;
-  margin: 0 0 12px 0;
 }
 
-.description-card p {
-  color: #64748b;
+.info-value.highlight {
+  color: #3b82f6;
+}
+
+.description-text {
   font-size: 14px;
+  color: #475569;
   line-height: 1.5;
   margin: 0;
+}
+
+.modal-progress {
+  margin-top: 4px;
 }
 </style>

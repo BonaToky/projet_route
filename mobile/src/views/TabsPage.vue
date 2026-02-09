@@ -36,6 +36,21 @@
             </button>
           </router-link>
 
+          <router-link 
+            to="/tabs/stats" 
+            custom 
+            v-slot="{ navigate, isActive }"
+          >
+            <button 
+              class="tab-button" 
+              :class="{ active: isActive }" 
+              @click="navigate"
+            >
+              <ion-icon :icon="statsChartOutline" class="tab-icon" />
+              <span class="tab-label">Stats</span>
+            </button>
+          </router-link>
+
           <button class="tab-button logout-btn" @click="logout">
             <ion-icon :icon="logOutOutline" class="tab-icon" />
             <span class="tab-label">Sortir</span>
@@ -56,7 +71,7 @@
 
 <script setup lang="ts">
 import { IonTabBar, IonTabButton, IonTabs, IonLabel, IonIcon, IonPage, IonRouterOutlet } from '@ionic/vue';
-import { personCircleOutline, mapOutline, listOutline, logOutOutline } from 'ionicons/icons';
+import { personCircleOutline, mapOutline, listOutline, logOutOutline, statsChartOutline } from 'ionicons/icons';
 import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 
@@ -136,13 +151,13 @@ const updateAuthState = async () => {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 10px 20px;
+  padding: 8px 14px;
   background: transparent;
   border: none;
-  border-radius: 18px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 70px;
+  min-width: 56px;
 }
 
 .tab-button:active {
@@ -150,13 +165,13 @@ const updateAuthState = async () => {
 }
 
 .tab-button .tab-icon {
-  font-size: 22px;
+  font-size: 20px;
   color: #64748b;
   transition: all 0.3s ease;
 }
 
 .tab-button .tab-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: #64748b;
   transition: all 0.3s ease;

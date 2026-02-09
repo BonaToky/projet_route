@@ -2,21 +2,18 @@
   <ion-page>
     <ion-header class="ion-no-border">
       <ion-toolbar class="custom-toolbar">
-        <ion-title>Carte</ion-title>
-        <ion-buttons slot="end">
-          <ion-button @click="refreshMap" class="refresh-btn-header">
+        <ion-buttons slot="start">
+          <ion-button @click="refreshMap" class="header-icon-btn">
             <ion-icon :icon="refresh" />
           </ion-button>
-          <ion-button @click="goToSettings" class="settings-btn">
+        </ion-buttons>
+        <ion-title>Carte</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="syncLocalToFirestore" class="header-icon-btn sync-btn-header">
+            <ion-icon :icon="cloudUpload" />
+          </ion-button>
+          <ion-button @click="goToSettings" class="header-icon-btn">
             <ion-icon :icon="settings" />
-          </ion-button>
-          <ion-button @click="syncLocalToFirestore" class="sync-btn">
-            <ion-icon :icon="cloudUpload" slot="start" />
-            Sync
-          </ion-button>
-          <ion-button @click="openRecapModal" class="recap-btn">
-            <ion-icon :icon="statsChart" slot="start" />
-            Stats
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -65,7 +62,7 @@
                   Appareil photo
                 </ion-button>
                 <ion-button @click="selectFromGallery" fill="outline" class="photo-btn">
-                  <ion-icon :icon="statsChart" slot="start" />
+                  <ion-icon :icon="imagesOutline" slot="start" />
                   Galerie
                 </ion-button>
               </div>
@@ -86,55 +83,6 @@
         </ion-content>
       </ion-modal>
 
-      <!-- Modal pour le récapitulatif -->
-      <ion-modal :is-open="showRecapModal" @will-dismiss="showRecapModal = false" class="custom-modal recap-modal">
-        <ion-header class="ion-no-border">
-          <ion-toolbar class="modal-toolbar">
-            <ion-title>📊 Récapitulation</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="showRecapModal = false">
-                <ion-icon :icon="close" />
-              </ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content class="modal-content">
-          <div class="recap-container">
-            <div class="recap-card purple">
-              <div class="recap-icon">📍</div>
-              <div class="recap-info">
-                <span class="recap-label">Points signalés</span>
-                <span class="recap-value">{{ recapData.count }}</span>
-              </div>
-            </div>
-            <div class="recap-card green">
-              <div class="recap-icon">📐</div>
-              <div class="recap-info">
-                <span class="recap-label">Surface totale</span>
-                <span class="recap-value">{{ recapData.totalSurface }} m²</span>
-              </div>
-            </div>
-            <div class="recap-card yellow">
-              <div class="recap-icon">⚡</div>
-              <div class="recap-info">
-                <span class="recap-label">Avancement moyen</span>
-                <span class="recap-value">{{ recapData.averageAvancement }}%</span>
-              </div>
-            </div>
-            <div class="recap-card red">
-              <div class="recap-icon">💰</div>
-              <div class="recap-info">
-                <span class="recap-label">Budget total</span>
-                <span class="recap-value">{{ recapData.totalBudget.toLocaleString() }} Ar</span>
-              </div>
-            </div>
-            <ion-button expand="block" @click="loadRecapData" class="refresh-btn">
-              <ion-icon :icon="refresh" slot="start" />
-              Actualiser
-            </ion-button>
-          </div>
-        </ion-content>
-      </ion-modal>
     </ion-content>
 
     <ion-toast
@@ -151,7 +99,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonModal, IonButtons, IonButton, IonInput, IonTextarea, IonToast, IonSelect, IonSelectOption, IonIcon } from '@ionic/vue';
-import { close, send, statsChart, refresh, cloudUpload, camera, trash, settings } from 'ionicons/icons';
+import { close, send, refresh, cloudUpload, camera, trash, settings, imagesOutline } from 'ionicons/icons';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
@@ -224,8 +172,6 @@ const showToast = ref(false);
 const toastMessage = ref('');
 const currentLatLng = ref<L.LatLng | null>(null);
 const allMarkers = ref<any[]>([]);
-const showRecapModal = ref(false);
-const recapData = ref({ count: 0, totalSurface: 0, averageAvancement: 0, totalBudget: 0 });
 const photos = ref<string[]>([]);
 const isInitializing = ref(false);
 const locationPermissionGranted = ref(false);
@@ -1040,45 +986,6 @@ const syncLocalToFirestore = async () => {
   }
 };
 
-const openRecapModal = async () => {
-  await loadRecapData();
-  showRecapModal.value = true;
-};
-
-const loadRecapData = async () => {
-  try {
-    const signalementsSnapshot = await getDocs(collection(db, 'signalements'));
-    let count = 0;
-    let totalSurface = 0;
-    signalementsSnapshot.forEach((doc: any) => {
-      count++;
-      totalSurface += doc.data().surface || 0;
-    });
-
-    const travauxSnapshot = await getDocs(collection(db, 'travaux'));
-    let totalBudget = 0;
-    let totalAvancement = 0;
-    let travauxCount = 0;
-    
-    travauxSnapshot.forEach((doc: any) => {
-      const data = doc.data();
-      totalBudget += data.budget || 0;
-      totalAvancement += data.avancement || 0;
-      travauxCount++;
-    });
-
-    recapData.value = { 
-      count, 
-      totalSurface, 
-      averageAvancement: travauxCount > 0 ? Math.round(totalAvancement / travauxCount) : 0,
-      totalBudget 
-    };
-  } catch (error: any) {
-    console.error('Erreur:', error);
-    toastMessage.value = 'Erreur de chargement';
-    showToast.value = true;
-  }
-};
 </script>
 
 <style scoped>
@@ -1094,11 +1001,30 @@ const loadRecapData = async () => {
 
 .custom-toolbar ion-title {
   font-weight: 600;
+  font-size: 17px;
 }
 
-.recap-btn {
-  --color: #3b82f6;
-  font-weight: 500;
+.header-icon-btn {
+  --color: rgba(255, 255, 255, 0.85);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0 2px;
+}
+
+.header-icon-btn ion-icon {
+  font-size: 20px;
+}
+
+.header-icon-btn:hover {
+  --color: #ffffff;
+}
+
+.sync-btn-header {
+  --color: #93c5fd;
+}
+
+.sync-btn-header:hover {
+  --color: #60a5fa;
 }
 
 #map {
@@ -1166,75 +1092,6 @@ const loadRecapData = async () => {
   height: 52px;
   font-weight: 600;
   margin-top: 10px;
-}
-
-.recap-modal::part(content) {
-  height: 70vh;
-  min-height: 450px;
-  background: white;
-}
-
-.recap-modal .modal-toolbar {
-  --background: linear-gradient(135deg, #1e3a5f, #3b82f6);
-  --color: white;
-}
-
-.recap-modal .modal-content {
-  --background: white;
-}
-
-.recap-container {
-  padding: 20px;
-}
-
-.recap-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: #f1f5f9;
-  border-radius: 16px;
-  margin-bottom: 12px;
-  border: 1px solid #e2e8f0;
-}
-
-.recap-card.purple .recap-icon { background: rgba(59, 130, 246, 0.15); }
-.recap-card.green .recap-icon { background: rgba(16, 185, 129, 0.15); }
-.recap-card.yellow .recap-icon { background: rgba(245, 158, 11, 0.15); }
-.recap-card.red .recap-icon { background: rgba(239, 68, 68, 0.15); }
-
-.recap-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-}
-
-.recap-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.recap-label {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.recap-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.refresh-btn {
-  --background: #1e3a5f;
-  --border-radius: 12px;
-  --color: white;
-  margin-top: 8px;
-  height: 48px;
 }
 
 .photo-buttons {
