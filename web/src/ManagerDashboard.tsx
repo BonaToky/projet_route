@@ -1061,8 +1061,9 @@ const ManagerDashboard = () => {
             <div className="map-container" style={{ height: '70vh', minHeight: '600px' }}>
               <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  url="http://localhost:3000/styles/bright/{z}/{x}/{y}.png"
                   attribution='© OpenStreetMap contributors'
+                  maxZoom={18}
                 />
                 <MapResizeFix />
                 {reports.map((report) => (
