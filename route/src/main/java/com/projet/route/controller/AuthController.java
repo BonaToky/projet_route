@@ -124,6 +124,29 @@ public class AuthController {
         return ResponseEntity.ok("User registered successfully");
     }
 
+    @PostMapping("/register-manager")
+    public ResponseEntity<?> registerManager(@RequestBody RegisterRequest request) {
+        if (utilisateurRepository.findByEmail(request.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
+        Role role = roleRepository.findByNom("MANAGER");
+        if (role == null) {
+            return ResponseEntity.badRequest().body("Role MANAGER not found");
+        }
+        Utilisateur user = new Utilisateur();
+        user.setNomUtilisateur(request.getNomUtilisateur());
+        user.setEmail(request.getEmail());
+        user.setMotDePasse(request.getPassword());
+        user.setRole(role);
+        user.setSourceAuth("local");
+        utilisateurRepository.save(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Manager registered successfully");
+        response.put("user", user);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/firebase-login")
     public ResponseEntity<?> firebaseLogin(@RequestBody FirebaseLoginRequest request) {
         try {
