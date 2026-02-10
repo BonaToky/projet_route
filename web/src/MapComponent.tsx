@@ -346,6 +346,36 @@ const MapComponent = () => {
     }
   }, [signalements]);
 
+  // Synchronisation des signalements depuis Firestore vers PostgreSQL
+  const syncSignalements = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Synchronisation des signalements...');
+      
+      // Appeler l'endpoint de sync
+      const syncResponse = await fetch('http://localhost:8080/api/signalements/sync');
+      if (!syncResponse.ok) {
+        throw new Error(`Erreur sync: ${syncResponse.status}`);
+      }
+      console.log('✅ Synchronisation terminée');
+
+      // Re-charger les signalements
+      const response = await fetch('http://localhost:8080/api/signalements');
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log('📍 Signalements mis à jour:', data);
+      setSignalements(data);
+      setError(null);
+    } catch (err) {
+      console.error('❌ Erreur lors de la synchronisation:', err);
+      setError('Impossible de synchroniser les signalements');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Navigation vers le formulaire
   const handleNavigateToForm = () => {
     if (selectedPoint) {
@@ -444,6 +474,32 @@ const MapComponent = () => {
               )}
             </div>
           </div>
+          <button 
+            onClick={syncSignalements}
+            disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              background: loading ? '#90caf9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width: '18px', height: '18px'}}>
+              <path d="M23 4V10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 20V14H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3.51 9.00001C4.01717 7.56679 4.87913 6.28541 6.01547 5.27543C7.1518 4.26545 8.52547 3.55977 10.0083 3.22427C11.4911 2.88877 13.0348 2.93436 14.4952 3.35679C15.9556 3.77922 17.2853 4.56472 18.36 5.64001L23 10M1 14L5.64 18.36C6.71475 19.4353 8.04437 20.2208 9.50481 20.6432C10.9652 21.0657 12.5089 21.1113 13.9917 20.7758C15.4745 20.4402 16.8482 19.7346 17.9845 18.7246C19.1209 17.7146 19.9828 16.4332 20.49 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {loading ? 'Synchronisation...' : 'Synchroniser'}
+          </button>
         </div>
         {/* Carte */}
         <div 
