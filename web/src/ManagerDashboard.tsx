@@ -1023,8 +1023,8 @@ const ManagerDashboard = () => {
             <div className="map-container" style={{ height: '70vh', minHeight: '600px' }}>
               <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='© OpenStreetMap contributors'
+                  url="http://localhost:3000/styles/basic-preview/512/{z}/{x}/{y}.png"
+                  attribution='© Carte offline - TileServer GL'
                 />
                 <MapResizeFix />
                 {reports.map((report) => (

@@ -21,6 +21,12 @@ services:
       context: ./carte
     ports:
       - "3000:8080"
+    volumes:
+      - ./carte/data:/data
+      - ./carte/styles:/data/styles
+      - ./carte/fonts:/data/fonts
+    restart: unless-stopped
+    
   web:
     build:
       context: ./web

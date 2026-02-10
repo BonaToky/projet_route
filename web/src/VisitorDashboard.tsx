@@ -225,8 +225,8 @@ const VisitorDashboard = () => {
         <div className="visitor-map" style={{ height: 'calc(100vh - 81px)', minHeight: '700px' }}>
           <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
             <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='© OpenStreetMap contributors'
+              url="http://localhost:3000/styles/basic-preview/512/{z}/{x}/{y}.png"
+              attribution='© Carte offline - TileServer GL'
             />
             {reports.map((report) => (
               <Marker 
