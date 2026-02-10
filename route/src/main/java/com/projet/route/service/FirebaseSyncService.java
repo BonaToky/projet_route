@@ -171,7 +171,16 @@ public class FirebaseSyncService {
                     }
                     travaux.setAvancement(BigDecimal.valueOf(avancementValue));
                 }
-
+                if (data.get("niveau") != null) {
+                    Object niveauObj = data.get("niveau");
+                    if (niveauObj instanceof Long) {
+                        travaux.setNiveau(((Long) niveauObj).intValue());
+                    } else if (niveauObj instanceof Integer) {
+                        travaux.setNiveau((Integer) niveauObj);
+                    } else {
+                        travaux.setNiveau(Integer.parseInt(niveauObj.toString()));
+                    }
+                }
                 // Check if already exists by firestoreId
                 var existing = travauxRepository.findByFirestoreId(doc.getId());
                 if (existing == null) {
@@ -209,6 +218,9 @@ public class FirebaseSyncService {
             }
             if (travaux.getAvancement() != null) {
                 data.put("avancement", travaux.getAvancement().doubleValue());
+            }
+            if (travaux.getNiveau() != null) {
+                data.put("niveau", travaux.getNiveau());
             }
 
             docRef.set(data).get();

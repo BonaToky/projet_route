@@ -93,6 +93,9 @@ public class TravauxController {
             if (travauxDetails.getAvancement() != null) {
                 travaux.setAvancement(travauxDetails.getAvancement());
             }
+            if (travauxDetails.getNiveau() != null) {
+                travaux.setNiveau(travauxDetails.getNiveau());
+            }
 
             Travaux updatedTravaux = travauxRepository.save(travaux);
 

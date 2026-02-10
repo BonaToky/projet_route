@@ -22,6 +22,9 @@ public class Travaux {
     @Column(precision = 20, scale = 2)
     private BigDecimal budget;
 
+    @Column(name = "niveau")
+    private Integer niveau;
+
     @Column(name = "date_debut_travaux")
     private LocalDate dateDebutTravaux;
 
@@ -46,6 +49,9 @@ public class Travaux {
 
     public BigDecimal getBudget() { return budget; }
     public void setBudget(BigDecimal budget) { this.budget = budget; }
+
+    public Integer getNiveau() { return niveau; }
+    public void setNiveau(Integer niveau) { this.niveau = niveau; }
 
     public LocalDate getDateDebutTravaux() { return dateDebutTravaux; }
     public void setDateDebutTravaux(LocalDate dateDebutTravaux) { this.dateDebutTravaux = dateDebutTravaux; }

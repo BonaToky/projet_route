@@ -87,6 +87,7 @@ interface Report {
     id: string;
     id_entreprise: number;
     budget: number;
+    niveau?: number;
     entreprise_nom?: string;
     date_debut_travaux: Date;
     date_fin_travaux: Date;
@@ -115,7 +116,7 @@ const ManagerDashboard = () => {
   const [password, setPassword] = useState('');
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [budget, setBudget] = useState('');
+  const [niveau, setNiveau] = useState('1');
   const [entreprise, setEntreprise] = useState('');
   const [dateDebut, setDateDebut] = useState('');
   const [dateFin, setDateFin] = useState('');
@@ -124,12 +125,17 @@ const ManagerDashboard = () => {
   const [editSurface, setEditSurface] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editEntreprise, setEditEntreprise] = useState('');
-  const [editBudget, setEditBudget] = useState('');
+  const [editNiveau, setEditNiveau] = useState('1');
   const [editDateDebut, setEditDateDebut] = useState('');
   const [editDateFin, setEditDateFin] = useState('');
   const [editStatut, setEditStatut] = useState('');
   const [showUserModal, setShowUserModal] = useState(false);
   const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+
+  const getCalculatedBudget = (niveauVal: string, surface: number): number => {
+    const prix = parseInt(authParams.find(p => p.cle === 'prix_par_m2')?.valeur || '5000');
+    return prix * parseInt(niveauVal || '1') * surface;
+  };
 
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
@@ -478,6 +484,7 @@ const ManagerDashboard = () => {
                       id: travaux.id?.toString() || '',
                       id_entreprise: travaux.entreprise?.idEntreprise || 0,
                       budget: parseFloat(travaux.budget) || 0,
+                      niveau: travaux.niveau || 1,
                       entreprise_nom: ent ? ent.nom : 'Entreprise inconnue',
                       date_debut_travaux: travaux.dateDebutTravaux ? new Date(travaux.dateDebutTravaux) : new Date(),
                       date_fin_travaux: travaux.dateFinTravaux ? new Date(travaux.dateFinTravaux) : new Date(),
@@ -526,6 +533,7 @@ const ManagerDashboard = () => {
               id: travaux.id?.toString() || '',
               id_entreprise: travaux.entreprise?.idEntreprise || 0,
               budget: parseFloat(travaux.budget) || 0,
+              niveau: travaux.niveau || 1,
               entreprise_nom: ent ? ent.nom : 'Entreprise inconnue',
               date_debut_travaux: travaux.dateDebutTravaux ? new Date(travaux.dateDebutTravaux) : new Date(),
               date_fin_travaux: travaux.dateFinTravaux ? new Date(travaux.dateFinTravaux) : new Date(),
@@ -548,12 +556,12 @@ const ManagerDashboard = () => {
   const handleManageTravaux = (report: Report) => {
     setSelectedReport(report);
     if (report.travaux) {
-      setBudget(report.travaux.budget.toString());
+      setNiveau(report.travaux.niveau?.toString() || '1');
       setEntreprise(report.travaux.id_entreprise.toString());
       setDateDebut(report.travaux.date_debut_travaux.toISOString().split('T')[0]);
       setDateFin(report.travaux.date_fin_travaux.toISOString().split('T')[0]);
     } else {
-      setBudget('');
+      setNiveau('1');
       setEntreprise('');
       setDateDebut(report.date_ajoute.toISOString().split('T')[0]);
       setDateFin('');
@@ -566,7 +574,7 @@ const ManagerDashboard = () => {
     setEditDescription(report.description);
     setEditStatut(report.statut);
     setEditEntreprise(report.travaux ? report.travaux.id_entreprise.toString() : '');
-    setEditBudget(report.travaux ? report.travaux.budget.toString() : '');
+    setEditNiveau(report.travaux?.niveau?.toString() || '1');
     setEditDateDebut(report.travaux ? report.travaux.date_debut_travaux.toISOString().split('T')[0] : '');
     setEditDateFin(report.travaux ? report.travaux.date_fin_travaux.toISOString().split('T')[0] : '');
   };
@@ -618,11 +626,13 @@ const ManagerDashboard = () => {
       else if (editStatut === 'en cours') avancementValue = 50;
       else if (editStatut === 'terminé') avancementValue = 100;
 
-      if (editEntreprise && editBudget && editDateDebut && editDateFin) {
+      if (editEntreprise && editDateDebut && editDateFin) {
+        const calculatedBudget = getCalculatedBudget(editNiveau, parseFloat(editSurface));
         const travauxData = {
           signalement: { idSignalement: postgresSignalementId },
           entreprise: { idEntreprise: parseInt(editEntreprise) },
-          budget: parseFloat(editBudget),
+          budget: calculatedBudget,
+          niveau: parseInt(editNiveau),
           dateDebutTravaux: editDateDebut,
           dateFinTravaux: editDateFin,
           avancement: avancementValue,
@@ -639,7 +649,8 @@ const ManagerDashboard = () => {
 
           const updateData = {
             entreprise: { idEntreprise: parseInt(editEntreprise) },
-            budget: parseFloat(editBudget),
+            budget: calculatedBudget,
+            niveau: parseInt(editNiveau),
             dateDebutTravaux: editDateDebut,
             dateFinTravaux: editDateFin,
             avancement: avancementValue,
@@ -671,7 +682,8 @@ const ManagerDashboard = () => {
           try {
             const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
             updateDoc(travauxRef, {
-              budget: parseFloat(editBudget),
+              budget: calculatedBudget,
+              niveau: parseInt(editNiveau),
               id_entreprise: parseInt(editEntreprise),
               date_debut_travaux: new Date(editDateDebut),
               date_fin_travaux: new Date(editDateFin),
@@ -716,7 +728,8 @@ const ManagerDashboard = () => {
           // Firestore travaux create (non-bloquant)
           addDoc(collection(db, 'travaux'), {
             id_signalement: editingReport.id,
-            budget: parseFloat(editBudget),
+            budget: calculatedBudget,
+            niveau: parseInt(editNiveau),
             id_entreprise: parseInt(editEntreprise),
             date_debut_travaux: new Date(editDateDebut),
             date_fin_travaux: new Date(editDateFin),
@@ -738,7 +751,7 @@ const ManagerDashboard = () => {
       setEditDescription('');
       setEditStatut('');
       setEditEntreprise('');
-      setEditBudget('');
+      setEditNiveau('1');
       setEditDateDebut('');
       setEditDateFin('');
       syncReports();
@@ -775,6 +788,7 @@ const ManagerDashboard = () => {
 
       const signalementData = await signalementResponse.json();
       const postgresSignalementId = signalementData.idSignalement;
+      const calculatedBudget = getCalculatedBudget(niveau, selectedReport.surface);
 
       // 2. Update ou Create basé sur les données locales (sans appel API supplémentaire)
       if (selectedReport.travaux && selectedReport.travaux.id) {
@@ -782,7 +796,8 @@ const ManagerDashboard = () => {
         const updateData = {
           signalement: { idSignalement: postgresSignalementId },
           entreprise: { idEntreprise: parseInt(entreprise) },
-          budget: parseFloat(budget),
+          budget: calculatedBudget,
+          niveau: parseInt(niveau),
           dateDebutTravaux: dateDebut,
           dateFinTravaux: dateFin,
           avancement: avancementValue,
@@ -819,7 +834,8 @@ const ManagerDashboard = () => {
         const travauxData = {
           signalement: { idSignalement: postgresSignalementId },
           entreprise: { idEntreprise: parseInt(entreprise) },
-          budget: parseFloat(budget),
+          budget: calculatedBudget,
+          niveau: parseInt(niveau),
           dateDebutTravaux: dateDebut,
           dateFinTravaux: dateFin,
           avancement: avancementValue,
@@ -854,7 +870,7 @@ const ManagerDashboard = () => {
       }
 
       setSelectedReport(null);
-      setBudget('');
+      setNiveau('1');
       setEntreprise('');
       setDateDebut('');
       setDateFin('');
@@ -1016,6 +1032,10 @@ const ManagerDashboard = () => {
                     key={report.id} 
                     position={[report.latitude, report.longitude]}
                     icon={getIconForProblem(report.type_probleme)}
+                    eventHandlers={{
+                      mouseover: (e: any) => e.target.openPopup(),
+                      mouseout: (e: any) => e.target.closePopup(),
+                    }}
                   >
                     <Popup>
                       <div className="custom-popup">
@@ -1037,6 +1057,10 @@ const ManagerDashboard = () => {
                             <div className="popup-row">
                               <span className="popup-label">Entreprise</span>
                               <span className="popup-value">{report.travaux.entreprise_nom}</span>
+                            </div>
+                            <div className="popup-row">
+                              <span className="popup-label">Niveau</span>
+                              <span className="popup-value">{report.travaux.niveau || 1}</span>
                             </div>
                             <div className="popup-row">
                               <span className="popup-label">Budget</span>
@@ -1193,6 +1217,7 @@ const ManagerDashboard = () => {
                       <th>Surface</th>
                       <th>Statut</th>
                       <th>Entreprise</th>
+                      <th>Niveau</th>
                       <th>Budget</th>
                       <th>Avancement</th>
                       <th>Date</th>
@@ -1206,6 +1231,7 @@ const ManagerDashboard = () => {
                         <td>{report.surface} m²</td>
                         <td>{getStatusBadge(report.statut)}</td>
                         <td>{report.travaux?.entreprise_nom || '-'}</td>
+                        <td>{report.travaux?.niveau || '-'}</td>
                         <td>{report.travaux ? `${report.travaux.budget.toLocaleString()} Ar` : '-'}</td>
                         <td>
                           {report.travaux ? (
@@ -1417,8 +1443,12 @@ const ManagerDashboard = () => {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Budget (Ar)</label>
-                  <input type="number" className="form-input" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
+                  <label className="form-label">Niveau (1-10)</label>
+                  <select className="form-select" value={niveau} onChange={(e) => setNiveau(e.target.value)}>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <option key={n} value={n.toString()}>Niveau {n}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Date Début</label>
@@ -1428,6 +1458,12 @@ const ManagerDashboard = () => {
                   <label className="form-label">Date Fin</label>
                   <input type="date" className="form-input" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
                 </div>
+              </div>
+              <div className="form-info-banner" style={{marginBottom: '12px'}}>
+                <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor"/>
+                </svg>
+                <span>Budget calculé : <strong>{getCalculatedBudget(niveau, selectedReport?.surface || 0).toLocaleString()} Ar</strong> (prix/m² × niveau × surface)</span>
               </div>
               <div className="form-info-banner">
                 <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>
@@ -1487,8 +1523,12 @@ const ManagerDashboard = () => {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Budget (Ar)</label>
-                  <input type="number" className="form-input" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="0" />
+                  <label className="form-label">Niveau (1-10)</label>
+                  <select className="form-select" value={editNiveau} onChange={(e) => setEditNiveau(e.target.value)}>
+                    {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                      <option key={n} value={n.toString()}>Niveau {n}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Date Début Travaux</label>
@@ -1498,6 +1538,12 @@ const ManagerDashboard = () => {
                   <label className="form-label">Date Fin Travaux</label>
                   <input type="date" className="form-input" value={editDateFin} onChange={(e) => setEditDateFin(e.target.value)} />
                 </div>
+              </div>
+              <div className="form-info-banner" style={{marginBottom: '12px'}}>
+                <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor"/>
+                </svg>
+                <span>Budget calculé : <strong>{getCalculatedBudget(editNiveau, parseFloat(editSurface) || 0).toLocaleString()} Ar</strong> (prix/m² × niveau × surface)</span>
               </div>
               <div className="form-info-banner">
                 <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>

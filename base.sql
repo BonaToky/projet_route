@@ -45,7 +45,8 @@ CREATE TABLE parametres_auth (
 
 INSERT INTO parametres_auth (cle, valeur, description) VALUES
 ('limite_tentatives', '3', 'Nombre maximum de tentatives de connexion avant blocage'),
-('duree_session_minutes', '60', 'Durée de vie d''une session en minutes');
+('duree_session_minutes', '60', 'Durée de vie d''une session en minutes'),
+('prix_par_m2', '5000', 'Prix forfaitaire par m² pour le calcul du budget des travaux (en Ariary)');
 
 -- Table des lieux (ex: intersections, quartiers)
 CREATE TABLE Lieux (
@@ -94,6 +95,7 @@ CREATE TABLE travaux (
    id_entreprise INT,
    id_signalement INT UNIQUE, -- Un signalement ne peut avoir qu'un seul travaux
    budget DECIMAL(20,2),
+   niveau INT DEFAULT 1 CHECK (niveau >= 1 AND niveau <= 10), -- Niveau de réparation (1 à 10)
    date_debut_travaux DATE,
    date_fin_travaux DATE,
    avancement DECIMAL(5,2) DEFAULT 0.00, -- pourcentage d'avancement(0 ou 50 ou 100%)

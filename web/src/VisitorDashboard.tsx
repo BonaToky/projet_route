@@ -64,6 +64,7 @@ interface Report {
     id: string;
     id_entreprise: number;
     budget: number;
+    niveau?: number;
     entreprise_nom?: string;
     date_debut_travaux: Date;
     date_fin_travaux: Date;
@@ -132,6 +133,7 @@ const VisitorDashboard = () => {
           id_signalement: data.id_signalement,
           id_entreprise: data.id_entreprise,
           budget: data.budget,
+          niveau: data.niveau || 1,
           date_debut_travaux: data.date_debut_travaux.toDate(),
           date_fin_travaux: data.date_fin_travaux.toDate(),
           avancement: data.avancement,
@@ -231,6 +233,10 @@ const VisitorDashboard = () => {
                 key={report.id} 
                 position={[report.latitude, report.longitude]}
                 icon={getIconForProblem(report.type_probleme)}
+                eventHandlers={{
+                  mouseover: (e: any) => e.target.openPopup(),
+                  mouseout: (e: any) => e.target.closePopup(),
+                }}
               >
                 <Popup>
                   <div className="popup-content">
@@ -271,6 +277,10 @@ const VisitorDashboard = () => {
                     )}
                     {report.travaux && (
                       <>
+                        <div className="popup-row">
+                          <span className="popup-label">Niveau</span>
+                          <span className="popup-value">{report.travaux.niveau || 1}</span>
+                        </div>
                         <div className="popup-row">
                           <span className="popup-label">Budget</span>
                           <span className="popup-value">{report.travaux.budget.toLocaleString()} Ar</span>

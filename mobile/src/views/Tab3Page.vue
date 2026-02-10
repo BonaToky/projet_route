@@ -73,6 +73,10 @@
                 <ion-icon :icon="resizeOutline" />
                 <span>{{ report.surface || 0 }} m²</span>
               </div>
+              <div class="meta-chip" v-if="report.travaux && report.travaux.niveau">
+                <ion-icon :icon="layersOutline" />
+                <span>Niv. {{ report.travaux.niveau }}</span>
+              </div>
               <div class="meta-chip" v-if="report.travaux">
                 <ion-icon :icon="walletOutline" />
                 <span>{{ formatBudget(report.travaux.budget) }}</span>
@@ -80,6 +84,10 @@
               <div class="meta-chip" v-if="report.travaux">
                 <ion-icon :icon="constructOutline" />
                 <span>{{ report.travaux.avancement || 0 }}%</span>
+              </div>
+              <div class="meta-chip" v-if="report.photos && report.photos.length > 0">
+                <ion-icon :icon="imagesOutline" />
+                <span>{{ report.photos.length }} photo{{ report.photos.length > 1 ? 's' : '' }}</span>
               </div>
             </div>
 
@@ -177,11 +185,28 @@
               <p class="description-text">{{ selectedReport.description }}</p>
             </div>
 
+            <!-- Photos -->
+            <div class="section-card" v-if="selectedReport.photos && selectedReport.photos.length > 0">
+              <div class="section-header">
+                <ion-icon :icon="imagesOutline" class="section-icon" />
+                <span>Photos ({{ selectedReport.photos.length }})</span>
+              </div>
+              <div class="photos-grid">
+                <div v-for="(photo, idx) in selectedReport.photos" :key="idx" class="photo-thumb" @click="openPhoto(photo)">
+                  <img :src="photo" :alt="'Photo ' + (idx + 1)" />
+                </div>
+              </div>
+            </div>
+
             <!-- Travaux -->
             <div class="section-card" v-if="selectedReport.travaux">
               <div class="section-header">
                 <ion-icon :icon="constructOutline" class="section-icon" />
                 <span>Travaux</span>
+              </div>
+              <div class="info-row" v-if="selectedReport.travaux.niveau">
+                <span class="info-label">Niveau</span>
+                <span class="info-value highlight">{{ selectedReport.travaux.niveau }}</span>
               </div>
               <div class="info-row">
                 <span class="info-label">Budget</span>
@@ -218,7 +243,8 @@ import {
   refreshOutline, addOutline, closeOutline, locationOutline, timerOutline,
   checkmarkDoneOutline, resizeOutline, walletOutline, constructOutline,
   folderOpenOutline, informationCircleOutline, documentTextOutline,
-  warningOutline, waterOutline, flashOutline, flagOutline, ellipseOutline, navigateOutline
+  warningOutline, waterOutline, flashOutline, flagOutline, ellipseOutline, navigateOutline,
+  imagesOutline, layersOutline
 } from 'ionicons/icons';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/firebase';
@@ -232,10 +258,12 @@ interface Report {
   latitude: number;
   longitude: number;
   surface: number;
+  photos?: string[];
   travaux?: {
     id: string;
     id_entreprise: number;
     budget: number;
+    niveau?: number;
     entreprise_nom?: string;
     date_debut_travaux: Date;
     date_fin_travaux: Date;
@@ -387,6 +415,10 @@ const getProgressClass = (value: number): string => {
 const openReportDetail = (report: Report) => {
   selectedReport.value = report;
   showDetailModal.value = true;
+};
+
+const openPhoto = (url: string) => {
+  window.open(url, '_blank');
 };
 </script>
 
@@ -809,5 +841,27 @@ const openReportDetail = (report: Report) => {
 
 .modal-progress {
   margin-top: 4px;
+}
+
+/* Photos */
+.photos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.photo-thumb {
+  width: 100%;
+  height: 100px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+}
+
+.photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>
