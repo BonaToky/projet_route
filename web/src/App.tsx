@@ -3,6 +3,7 @@ import ManagerLogin from './ManagerLogin';
 import ManagerDashboard from './ManagerDashboard';
 import VisitorDashboard from './VisitorDashboard';
 import './App.css';
+import MapComponent from './MapComponent';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
           <Route path="/" element={<ManagerLogin />} />
           <Route path="/dashboard" element={<ManagerDashboard />} />
           <Route path="/visiteur" element={<VisitorDashboard />} />
+          <Route path="/map" element={<MapComponent />} />
         </Routes>
       </div>
     </Router>
