@@ -7,7 +7,7 @@
   "sources": {
     "antananarivo": {
       "type": "vector",
-      "url": "mbtiles://antananarivo"
+      "url": "http://localhost:3000/data/v3.json"
     }
   },
   "layers": [
