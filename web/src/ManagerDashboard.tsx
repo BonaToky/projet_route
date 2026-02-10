@@ -920,14 +920,14 @@ const ManagerDashboard = () => {
 
   const getProblemTypeLabel = (type?: string) => {
     const labels: { [key: string]: string } = {
-      'nid-de-poule': '🕳️ Nid de poule',
-      'route-inondee': '🌊 Route inondée',
-      'route-endommagee': '⚠️ Route endommagée',
-      'signalisation-manquante': '🚧 Signalisation manquante',
-      'eclairage-defectueux': '💡 Éclairage défectueux',
-      'autre': '📍 Autre',
+      'nid-de-poule': 'Nid de poule',
+      'route-inondee': 'Route inondée',
+      'route-endommagee': 'Route endommagée',
+      'signalisation-manquante': 'Signalisation manquante',
+      'eclairage-defectueux': 'Éclairage défectueux',
+      'autre': 'Autre',
     };
-    return labels[type || ''] || '📍 Non spécifié';
+    return labels[type || ''] || 'Non spécifié';
   };
 
   return (
@@ -1021,7 +1021,7 @@ const ManagerDashboard = () => {
               </button>
             </div>
             <div className="map-container" style={{ height: '70vh', minHeight: '600px' }}>
-              <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
+              <MapContainer center={[-18.8792, 47.5079]} zoom={14} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   url="http://localhost:3000/styles/bright/512/{z}/{x}/{y}.png"
                   attribution='© Carte offline - TileServer GL'
@@ -1172,35 +1172,62 @@ const ManagerDashboard = () => {
             
             <div className="stats-grid">
               <div className="stat-card">
-                <div className="stat-icon purple">📍</div>
+                <div className="stat-icon purple">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'22px',height:'22px'}}>
+                    <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-info">
                   <div className="stat-label">Total signalements</div>
                   <div className="stat-value">{reports.length}</div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon yellow">⏳</div>
+                <div className="stat-icon yellow">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'22px',height:'22px'}}>
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-info">
                   <div className="stat-label">Nouveaux</div>
                   <div className="stat-value">{reports.filter(r => r.statut === 'nouveau').length}</div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon green">🔄</div>
+                <div className="stat-icon green">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'22px',height:'22px'}}>
+                    <path d="M23 4V10H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M1 20V14H7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M3.51 9C4.02 7.57 4.88 6.29 6.02 5.28C7.15 4.27 8.53 3.56 10.01 3.22C11.49 2.89 13.03 2.93 14.5 3.36C15.96 3.78 17.29 4.56 18.36 5.64L23 10M1 14L5.64 18.36C6.71 19.44 8.04 20.22 9.5 20.64C10.97 21.07 12.51 21.11 13.99 20.78C15.47 20.44 16.85 19.73 17.98 18.72C19.12 17.71 19.98 16.43 20.49 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-info">
                   <div className="stat-label">En cours</div>
                   <div className="stat-value">{reports.filter(r => r.statut === 'en cours').length}</div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon red">✅</div>
+                <div className="stat-icon red">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'22px',height:'22px'}}>
+                    <path d="M22 11.08V12C21.9988 14.1564 21.3005 16.2547 20.0093 17.9818C18.7182 19.709 16.9033 20.9725 14.8354 21.5839C12.7674 22.1953 10.5573 22.1219 8.53447 21.3746C6.51168 20.6273 4.78465 19.2461 3.61096 17.4371C2.43727 15.628 1.87979 13.4881 2.02168 11.3363C2.16356 9.18455 2.99721 7.13631 4.39828 5.49706C5.79935 3.85781 7.69279 2.71537 9.79619 2.24013C11.8996 1.7649 14.1003 1.98232 16.07 2.86" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M22 4L12 14.01L9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-info">
                   <div className="stat-label">Terminés</div>
                   <div className="stat-value">{reports.filter(r => r.statut === 'terminé').length}</div>
                 </div>
               </div>
               <div className="stat-card">
-                <div className="stat-icon orange">📊</div>
+                <div className="stat-icon orange">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'22px',height:'22px'}}>
+                    <path d="M18 20V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M12 20V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M6 20V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
                 <div className="stat-info">
                   <div className="stat-label">Délai moyen</div>
                   <div className="stat-value">{calculateAverageDelay()} jours</div>

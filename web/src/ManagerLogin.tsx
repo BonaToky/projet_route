@@ -39,40 +39,7 @@ const ManagerLogin = () => {
 
   return (
     <div className="login-container">
-      {/* Left Sidebar with branding */}
-      <div className="login-sidebar">
-        <div className="sidebar-content">
-          <div className="sidebar-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="sidebar-title">RouteWatch</h1>
-          <p className="sidebar-description">
-            Système de gestion et de suivi des problèmes routiers. 
-            Signalez, suivez et gérez les interventions sur le réseau routier.
-          </p>
-          
-          <div className="sidebar-features">
-            <div className="feature-item">
-              <div className="feature-icon">📍</div>
-              <span className="feature-text">Suivi en temps réel des signalements</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">📊</div>
-              <span className="feature-text">Tableau de bord analytique</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">🏗️</div>
-              <span className="feature-text">Gestion des travaux et interventions</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - Login form */}
+      {/* Centered Login form */}
       <div className="login-main">
         <div className="login-card">
           <div className="login-header">

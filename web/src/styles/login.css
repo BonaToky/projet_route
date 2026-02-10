@@ -40,7 +40,33 @@
 .login-container {
   min-height: 100vh;
   display: flex;
-  background: var(--background);
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 50%, #1a1a2e 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.login-container::after {
+  content: '';
+  position: absolute;
+  bottom: -20%;
+  left: -15%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 60%);
+  pointer-events: none;
 }
 
 .login-background {
@@ -161,21 +187,25 @@
 }
 
 .login-main {
-  flex: 1;
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 60px;
+  padding: 40px;
+  width: 100%;
+  max-width: 520px;
 }
 
 .login-card {
   width: 100%;
   max-width: 440px;
-  background: transparent;
+  background: var(--surface);
   border: none;
-  box-shadow: none;
-  padding: 0;
+  box-shadow: var(--shadow-xl);
+  padding: 48px 40px;
+  border-radius: var(--radius-xl);
 }
 
 .login-header {
@@ -230,7 +260,7 @@
 .input-group input {
   width: 100%;
   padding: 14px 16px;
-  background: var(--surface);
+  background: var(--border-light);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 15px;
@@ -964,22 +994,32 @@
 
 .stat-icon.blue {
   background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
 }
 
 .stat-icon.green {
   background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .stat-icon.yellow {
   background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
 }
 
 .stat-icon.red {
   background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .stat-icon.purple {
   background: rgba(30, 58, 95, 0.1);
+  color: #1e3a5f;
+}
+
+.stat-icon.orange {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
 }
 
 .stat-info {
@@ -1119,10 +1159,10 @@
   font-size: 20px;
 }
 
-.recap-icon.blue { background: rgba(59, 130, 246, 0.15); }
-.recap-icon.green { background: rgba(16, 185, 129, 0.15); }
-.recap-icon.yellow { background: rgba(245, 158, 11, 0.15); }
-.recap-icon.red { background: rgba(239, 68, 68, 0.15); }
+.recap-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.recap-icon.green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.recap-icon.yellow { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.recap-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
 .recap-info {
   flex: 1;
@@ -1176,12 +1216,12 @@
 }
 
 /* Legend Colors */
-.legend-color.red { background: rgba(239, 68, 68, 0.15); }
-.legend-color.blue { background: rgba(59, 130, 246, 0.15); }
-.legend-color.orange { background: rgba(249, 115, 22, 0.15); }
-.legend-color.yellow { background: rgba(245, 158, 11, 0.15); }
-.legend-color.purple { background: rgba(139, 92, 246, 0.15); }
-.legend-color.gray { background: rgba(107, 114, 128, 0.15); }
+.legend-color.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.legend-color.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.legend-color.orange { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+.legend-color.yellow { background: rgba(245, 158, 11, 0.15); color: #eab308; }
+.legend-color.purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+.legend-color.gray { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
 
 /* ==========================================
    USERS PAGE
@@ -1287,12 +1327,9 @@
 }
 
 @media (max-width: 992px) {
-  .login-sidebar {
-    display: none;
-  }
-  
   .login-main {
     width: 100%;
+    padding: 24px;
   }
   
   .sidebar {

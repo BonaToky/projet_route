@@ -223,7 +223,7 @@ const VisitorDashboard = () => {
 
       <div className="visitor-content">
         <div className="visitor-map" style={{ height: 'calc(100vh - 81px)', minHeight: '700px' }}>
-          <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={[-18.8792, 47.5079]} zoom={14} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="http://localhost:3000/styles/bright/512/{z}/{x}/{y}.png"
               attribution='© Carte offline - TileServer GL'
@@ -302,7 +302,12 @@ const VisitorDashboard = () => {
           <h3 className="visitor-sidebar-title">Récapitulatif</h3>
 
           <div className="recap-card">
-            <div className="recap-icon blue">📍</div>
+            <div className="recap-icon blue">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'20px',height:'20px'}}>
+                <path d="M21 10C21 17 12 23 12 23S3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <circle cx="12" cy="10" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <div className="recap-info">
               <span className="recap-label">Points signalés</span>
               <span className="recap-value">{recapData.count}</span>
@@ -310,7 +315,13 @@ const VisitorDashboard = () => {
           </div>
 
           <div className="recap-card">
-            <div className="recap-icon green">📐</div>
+            <div className="recap-icon green">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'20px',height:'20px'}}>
+                <path d="M1 1L7 4L12 1L17 4L23 1V17L17 20L12 17L7 20L1 17V1Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M7 4V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M17 4V20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <div className="recap-info">
               <span className="recap-label">Surface totale</span>
               <span className="recap-value">{recapData.totalSurface} m²</span>
@@ -318,7 +329,11 @@ const VisitorDashboard = () => {
           </div>
 
           <div className="recap-card">
-            <div className="recap-icon yellow">⚡</div>
+            <div className="recap-icon yellow">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'20px',height:'20px'}}>
+                <path d="M22 12H18L15 21L9 3L6 12H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <div className="recap-info">
               <span className="recap-label">Avancement moyen</span>
               <span className="recap-value">{recapData.averageAvancement}%</span>
@@ -326,7 +341,12 @@ const VisitorDashboard = () => {
           </div>
 
           <div className="recap-card">
-            <div className="recap-icon red">💰</div>
+            <div className="recap-icon red">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'20px',height:'20px'}}>
+                <path d="M21 4H3C1.89543 4 1 4.89543 1 6V18C1 19.1046 1.89543 20 3 20H21C22.1046 20 23 19.1046 23 18V6C23 4.89543 22.1046 4 21 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M1 10H23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
             <div className="recap-info">
               <span className="recap-label">Budget total</span>
               <span className="recap-value">{recapData.totalBudget.toLocaleString()} Ar</span>
@@ -344,23 +364,52 @@ const VisitorDashboard = () => {
           <div className="legend-card">
             <h4 className="legend-title">Légende</h4>
             <div className="legend-item">
-              <div className="legend-color red">🕳️</div>
+              <div className="legend-color red">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'14px',height:'14px'}}>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M8 12C8 12 9.5 16 12 16C14.5 16 16 12 16 12C16 12 14.5 8 12 8C9.5 8 8 12 8 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
               <span className="legend-label">Nid de poule</span>
             </div>
             <div className="legend-item">
-              <div className="legend-color blue">🌊</div>
+              <div className="legend-color blue">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'14px',height:'14px'}}>
+                  <path d="M2 12C2 12 5 6 12 6C19 6 22 12 22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M2 18C2 18 5 12 12 12C19 12 22 18 22 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </div>
               <span className="legend-label">Route inondée</span>
             </div>
             <div className="legend-item">
-              <div className="legend-color orange">⚠️</div>
+              <div className="legend-color orange">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'14px',height:'14px'}}>
+                  <path d="M10.29 3.86L1.82 18C1.64 18.3 1.55 18.65 1.56 19C1.56 19.35 1.67 19.7 1.86 19.99C2.05 20.29 2.32 20.53 2.64 20.68C2.96 20.83 3.31 20.89 3.66 20.86H20.34C20.69 20.89 21.04 20.83 21.36 20.68C21.68 20.53 21.95 20.29 22.14 19.99C22.33 19.7 22.44 19.35 22.44 19C22.45 18.65 22.36 18.3 22.18 18L13.71 3.86C13.53 3.57 13.27 3.33 12.97 3.17C12.67 3.01 12.34 2.93 12 2.93C11.66 2.93 11.33 3.01 11.03 3.17C10.73 3.33 10.47 3.57 10.29 3.86Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
               <span className="legend-label">Route endommagée</span>
             </div>
             <div className="legend-item">
-              <div className="legend-color yellow">🚧</div>
+              <div className="legend-color yellow">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'14px',height:'14px'}}>
+                  <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
               <span className="legend-label">Signalisation manquante</span>
             </div>
             <div className="legend-item">
-              <div className="legend-color purple">💡</div>
+              <div className="legend-color purple">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{width:'14px',height:'14px'}}>
+                  <path d="M9 18H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M10 22H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 2V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M12 3C8.69 3 6 5.69 6 9C6 11.22 7.21 13.15 9 14.2V15C9 15.55 9.45 16 10 16H14C14.55 16 15 15.55 15 15V14.2C16.79 13.15 18 11.22 18 9C18 5.69 15.31 3 12 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
               <span className="legend-label">Éclairage défectueux</span>
             </div>
           </div>
