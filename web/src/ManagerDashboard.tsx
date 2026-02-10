@@ -163,6 +163,15 @@ const ManagerDashboard = () => {
     return response;
   };
 
+  // Lire le query parameter "view" pour naviguer directement vers une section
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const view = params.get('view');
+    if (view === 'users' || view === 'reports' || view === 'config' || view === 'map') {
+      setCurrentView(view);
+    }
+  }, [location.search]);
+
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (!token) {
