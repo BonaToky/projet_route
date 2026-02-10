@@ -30,7 +30,8 @@ const MapComponent = () => {
 
   const mapStyle = {
     version: 8,
-    name: 'Madagascar Carte',
+    name: 'Madagascar Carte Réaliste',
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'openmaptiles': {
         type: 'vector',
@@ -40,88 +41,560 @@ const MapComponent = () => {
       }
     },
     layers: [
+      // ===== FOND DE CARTE =====
       {
         id: 'background',
         type: 'background',
         paint: {
-          'background-color': '#e3f2fd'
+          'background-color': '#f0ede9'
         }
       },
-      {
-        id: 'land',
-        type: 'fill',
-        source: 'openmaptiles',
-        'source-layer': 'landuse',
-        filter: ['==', '$type', 'Polygon'],
-        paint: {
-          'fill-color': '#c8e6c9',
-          'fill-opacity': 0.8
-        }
-      },
+      // ===== EAU =====
       {
         id: 'water',
         type: 'fill',
         source: 'openmaptiles',
         'source-layer': 'water',
         paint: {
-          'fill-color': '#64b5f6',
-          'fill-opacity': 0.9
+          'fill-color': '#aad3df',
+          'fill-opacity': 1
         }
       },
       {
-        id: 'roads',
+        id: 'water-pattern',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'water',
+        paint: {
+          'fill-color': '#aad3df',
+          'fill-opacity': 0.3
+        }
+      },
+      // ===== COURS D'EAU =====
+      {
+        id: 'waterway',
         type: 'line',
         source: 'openmaptiles',
-        'source-layer': 'transportation',
-        filter: ['!=', 'brunnel', 'tunnel'],
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
+        'source-layer': 'waterway',
         paint: {
-          'line-color': '#ffffff',
-          'line-width': {
-            base: 1.4,
-            stops: [
-              [8, 2],
-              [12, 3],
-              [16, 5]
-            ]
-          }
+          'line-color': '#aad3df',
+          'line-width': { stops: [[8, 0.5], [12, 1.5], [16, 3]] }
+        }
+      },
+      // ===== UTILISATION DU SOL =====
+      {
+        id: 'landuse-residential',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landuse',
+        filter: ['==', 'class', 'residential'],
+        paint: {
+          'fill-color': '#e8e0d8',
+          'fill-opacity': 0.6
         }
       },
       {
-        id: 'road-border',
-        type: 'line',
+        id: 'landuse-commercial',
+        type: 'fill',
         source: 'openmaptiles',
-        'source-layer': 'transportation',
-        filter: ['!=', 'brunnel', 'tunnel'],
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
+        'source-layer': 'landuse',
+        filter: ['in', 'class', 'commercial', 'retail'],
         paint: {
-          'line-color': '#424242',
-          'line-width': {
-            base: 1.4,
-            stops: [
-              [8, 3],
-              [12, 4],
-              [16, 6]
-            ]
-          }
+          'fill-color': '#f2e6d9',
+          'fill-opacity': 0.5
         }
       },
+      {
+        id: 'landuse-industrial',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landuse',
+        filter: ['==', 'class', 'industrial'],
+        paint: {
+          'fill-color': '#e0dce0',
+          'fill-opacity': 0.5
+        }
+      },
+      // ===== PARCS & ESPACES VERTS =====
+      {
+        id: 'landuse-park',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landuse',
+        filter: ['in', 'class', 'park', 'cemetery', 'grass'],
+        paint: {
+          'fill-color': '#c8e6c0',
+          'fill-opacity': 0.7
+        }
+      },
+      {
+        id: 'landcover-grass',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landcover',
+        filter: ['==', 'class', 'grass'],
+        paint: {
+          'fill-color': '#d4e8c6',
+          'fill-opacity': 0.5
+        }
+      },
+      {
+        id: 'landcover-wood',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landcover',
+        filter: ['==', 'class', 'wood'],
+        paint: {
+          'fill-color': '#a4d49b',
+          'fill-opacity': 0.4
+        }
+      },
+      // ===== BÂTIMENTS =====
       {
         id: 'building',
         type: 'fill',
         source: 'openmaptiles',
         'source-layer': 'building',
-        minzoom: 10,
+        minzoom: 13,
         paint: {
-          'fill-color': '#bdbdbd',
-          'fill-outline-color': '#757575',
-          'fill-opacity': 0.7
+          'fill-color': '#d9d0c9',
+          'fill-opacity': { stops: [[13, 0.3], [16, 0.8]] }
+        }
+      },
+      {
+        id: 'building-outline',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'building',
+        minzoom: 14,
+        paint: {
+          'line-color': '#c0b8af',
+          'line-width': 0.5,
+          'line-opacity': 0.7
+        }
+      },
+      // ===== ROUTES - BORDURES (dessous) =====
+      {
+        id: 'tunnel-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'butt' },
+        paint: {
+          'line-color': '#c8c4c0',
+          'line-width': { stops: [[8, 3], [12, 5], [16, 10]] },
+          'line-dasharray': [3, 3],
+          'line-opacity': 0.5
+        }
+      },
+      {
+        id: 'road-motorway-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'motorway'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#c67b38',
+          'line-width': { stops: [[5, 1.5], [8, 3], [12, 6], [16, 14]] }
+        }
+      },
+      {
+        id: 'road-trunk-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'trunk'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#c67b38',
+          'line-width': { stops: [[5, 1.2], [8, 2.5], [12, 5], [16, 12]] }
+        }
+      },
+      {
+        id: 'road-primary-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'primary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#c8a96e',
+          'line-width': { stops: [[5, 1], [8, 2], [12, 4.5], [16, 11]] }
+        }
+      },
+      {
+        id: 'road-secondary-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'secondary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#c8c4c0',
+          'line-width': { stops: [[8, 1.5], [12, 3.5], [16, 9]] }
+        }
+      },
+      {
+        id: 'road-tertiary-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'tertiary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#c8c4c0',
+          'line-width': { stops: [[8, 1], [12, 3], [16, 8]] }
+        }
+      },
+      {
+        id: 'road-minor-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['in', 'class', 'minor', 'service'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        minzoom: 12,
+        paint: {
+          'line-color': '#d0ccc8',
+          'line-width': { stops: [[12, 1.5], [16, 5]] }
+        }
+      },
+      // ===== ROUTES - REMPLISSAGE (dessus) =====
+      {
+        id: 'road-motorway',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'motorway'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#fca868',
+          'line-width': { stops: [[5, 1], [8, 2], [12, 4.5], [16, 11]] }
+        }
+      },
+      {
+        id: 'road-trunk',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'trunk'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#fca868',
+          'line-width': { stops: [[5, 0.8], [8, 1.8], [12, 4], [16, 10]] }
+        }
+      },
+      {
+        id: 'road-primary',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'primary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#fde293',
+          'line-width': { stops: [[5, 0.6], [8, 1.5], [12, 3.5], [16, 9]] }
+        }
+      },
+      {
+        id: 'road-secondary',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'secondary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': { stops: [[8, 1], [12, 2.5], [16, 7]] }
+        }
+      },
+      {
+        id: 'road-tertiary',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'tertiary'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': { stops: [[8, 0.6], [12, 2], [16, 6]] }
+        }
+      },
+      {
+        id: 'road-minor',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['in', 'class', 'minor', 'service'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        minzoom: 12,
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': { stops: [[12, 0.8], [16, 3.5]] }
+        }
+      },
+      {
+        id: 'road-path',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['all', ['==', 'class', 'path'], ['!=', 'brunnel', 'tunnel']],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        minzoom: 14,
+        paint: {
+          'line-color': '#cba98a',
+          'line-width': 1.5,
+          'line-dasharray': [2, 2],
+          'line-opacity': 0.7
+        }
+      },
+      // ===== PONTS =====
+      {
+        id: 'bridge-casing',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['==', 'brunnel', 'bridge'],
+        layout: { 'line-join': 'round', 'line-cap': 'butt' },
+        paint: {
+          'line-color': '#b8b4b0',
+          'line-width': { stops: [[8, 3], [12, 5], [16, 12]] }
+        }
+      },
+      {
+        id: 'bridge-fill',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        filter: ['==', 'brunnel', 'bridge'],
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': { stops: [[8, 2], [12, 4], [16, 10]] }
+        }
+      },
+      // ===== LIMITES ADMINISTRATIVES =====
+      {
+        id: 'admin-boundary',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'boundary',
+        filter: ['<=', 'admin_level', 4],
+        paint: {
+          'line-color': '#9e9cab',
+          'line-width': { stops: [[3, 0.5], [8, 1.5], [12, 2]] },
+          'line-dasharray': [5, 3],
+          'line-opacity': 0.6
+        }
+      },
+      // ===== LABELS - NOMS DE RUES =====
+      {
+        id: 'road-label-primary',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'transportation_name',
+        filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
+        minzoom: 12,
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[12, 10], [16, 14]] },
+          'text-max-angle': 30,
+          'text-padding': 5,
+          'symbol-spacing': 250
+        },
+        paint: {
+          'text-color': '#5c4a36',
+          'text-halo-color': 'rgba(255,255,255,0.9)',
+          'text-halo-width': 2
+        }
+      },
+      {
+        id: 'road-label-secondary',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'transportation_name',
+        filter: ['in', 'class', 'secondary', 'tertiary'],
+        minzoom: 14,
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[14, 9], [16, 12]] },
+          'text-max-angle': 30,
+          'text-padding': 5,
+          'symbol-spacing': 200
+        },
+        paint: {
+          'text-color': '#6e6862',
+          'text-halo-color': 'rgba(255,255,255,0.85)',
+          'text-halo-width': 1.5
+        }
+      },
+      {
+        id: 'road-label-minor',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'transportation_name',
+        filter: ['in', 'class', 'minor', 'service'],
+        minzoom: 15,
+        layout: {
+          'symbol-placement': 'line',
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[15, 8], [17, 11]] },
+          'text-max-angle': 30,
+          'text-padding': 3,
+          'symbol-spacing': 150
+        },
+        paint: {
+          'text-color': '#888',
+          'text-halo-color': 'rgba(255,255,255,0.8)',
+          'text-halo-width': 1.2
+        }
+      },
+      // ===== LABELS - LIEUX / POI =====
+      {
+        id: 'poi-label',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'poi',
+        minzoom: 14,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': 10,
+          'text-offset': [0, 1.5],
+          'text-anchor': 'top',
+          'text-max-width': 8,
+          'text-optional': true
+        },
+        paint: {
+          'text-color': '#666',
+          'text-halo-color': 'rgba(255,255,255,0.75)',
+          'text-halo-width': 1
+        }
+      },
+      // ===== LABELS - VILLES & QUARTIERS =====
+      {
+        id: 'place-city',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        filter: ['==', 'class', 'city'],
+        minzoom: 6,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[6, 12], [10, 18], [14, 24]] },
+          'text-max-width': 10,
+          'text-allow-overlap': false
+        },
+        paint: {
+          'text-color': '#333',
+          'text-halo-color': 'rgba(255,255,255,0.9)',
+          'text-halo-width': 2.5
+        }
+      },
+      {
+        id: 'place-town',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        filter: ['==', 'class', 'town'],
+        minzoom: 8,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[8, 10], [12, 15]] },
+          'text-max-width': 10
+        },
+        paint: {
+          'text-color': '#444',
+          'text-halo-color': 'rgba(255,255,255,0.85)',
+          'text-halo-width': 2
+        }
+      },
+      {
+        id: 'place-village',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        filter: ['==', 'class', 'village'],
+        minzoom: 10,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[10, 9], [14, 13]] },
+          'text-max-width': 8
+        },
+        paint: {
+          'text-color': '#555',
+          'text-halo-color': 'rgba(255,255,255,0.8)',
+          'text-halo-width': 1.5
+        }
+      },
+      {
+        id: 'place-suburb',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        filter: ['==', 'class', 'suburb'],
+        minzoom: 12,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[12, 10], [15, 13]] },
+          'text-max-width': 8,
+          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.1
+        },
+        paint: {
+          'text-color': '#7a7a7a',
+          'text-halo-color': 'rgba(255,255,255,0.75)',
+          'text-halo-width': 1.5
+        }
+      },
+      {
+        id: 'place-neighbourhood',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'place',
+        filter: ['==', 'class', 'neighbourhood'],
+        minzoom: 13,
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[13, 9], [16, 12]] },
+          'text-max-width': 7,
+          'text-transform': 'uppercase',
+          'text-letter-spacing': 0.05
+        },
+        paint: {
+          'text-color': '#999',
+          'text-halo-color': 'rgba(255,255,255,0.7)',
+          'text-halo-width': 1
+        }
+      },
+      // ===== LABELS - PLANS D'EAU =====
+      {
+        id: 'water-label',
+        type: 'symbol',
+        source: 'openmaptiles',
+        'source-layer': 'water_name',
+        layout: {
+          'text-field': '{name}',
+          'text-font': ['Open Sans Regular'],
+          'text-size': { stops: [[10, 10], [14, 14]] },
+          'text-max-width': 8
+        },
+        paint: {
+          'text-color': '#5a8fa8',
+          'text-halo-color': 'rgba(255,255,255,0.6)',
+          'text-halo-width': 1
         }
       }
     ]
