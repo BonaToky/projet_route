@@ -355,262 +355,211 @@ const MapComponent = () => {
   };
 
   return (
-    <div style={{ 
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      width: '100vw',
-      height: '100vh',
-      margin: 0,
-      padding: 0,
-      backgroundColor: '#fafafa',
-      overflow: 'hidden',
-      zIndex: 1
-    }}>
-      {/* Header flottant en haut */}
-      <div style={{ 
-        position: 'absolute',
-        top: '10px',
-        left: '10px',
-        right: '10px',
-        zIndex: 10,
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        flexWrap: 'wrap', 
-        gap: '10px',
-        background: 'rgba(255,255,255,0.95)',
-        padding: '15px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
-      }}>
-        <div>
-          <h3 style={{ margin: '0 0 5px 0', color: '#1976d2', fontSize: '20px' }}>
-            🗺️ Carte des Signalements - Antananarivo
-          </h3>
-          <div style={{ fontSize: '14px', color: '#666' }}>
-            {loading ? (
-              <span>⏳ Chargement des signalements...</span>
-            ) : error ? (
-              <span style={{ color: '#f44336' }}>❌ {error}</span>
-            ) : (
-              <span style={{ color: '#4caf50', fontWeight: '500' }}>
-                ✓ {signalements.length} signalement(s) • Double-cliquez pour en créer un nouveau
-              </span>
-            )}
+    <div className="dashboard-container">
+      <nav className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
+          <span className="sidebar-title">RouteWatch</span>
         </div>
-        
-        {/* Légende */}
+        <div className="nav-menu">
+          <button className="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M1 6V22L8 18L16 22L23 18V2L16 6L8 2L1 6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 2V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16 6V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Carte
+          </button>
+          <button className="nav-item" onClick={() => navigate('/create-user')}>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Utilisateurs
+          </button>
+        </div>
+        <button className="logout-btn" onClick={() => navigate('/login')}>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Déconnexion
+        </button>
+      </nav>
+      <main className="main-content">
+        {/* Header flottant en haut */}
         <div style={{ 
+          position: 'relative',
+          zIndex: 10,
           display: 'flex', 
-          gap: '15px', 
-          fontSize: '12px',
-          padding: '10px 15px',
-          background: 'white',
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '10px',
+          background: 'rgba(255,255,255,0.95)',
+          padding: '15px',
           borderRadius: '8px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
-          border: '1px solid #e0e0e0'
+          boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+          marginBottom: '20px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#f44336', border: '2px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.3)' }}></div>
-            <span style={{ fontWeight: '500' }}>Non traité</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#ff9800', border: '2px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.3)' }}></div>
-            <span style={{ fontWeight: '500' }}>En cours</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#4caf50', border: '2px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.3)' }}></div>
-            <span style={{ fontWeight: '500' }}>Traité</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#9c27b0', border: '2px solid white', boxShadow: '0 0 3px rgba(0,0,0,0.3)' }}></div>
-            <span style={{ fontWeight: '500' }}>Nouveau</span>
+          <div>
+            <h3 style={{ margin: '0 0 5px 0', color: '#1976d2', fontSize: '20px' }}>
+              🗺️ Carte des Signalements - Antananarivo
+            </h3>
+            <div style={{ fontSize: '14px', color: '#666' }}>
+              {loading ? (
+                <span>⏳ Chargement des signalements...</span>
+              ) : error ? (
+                <span style={{ color: '#f44336' }}>❌ {error}</span>
+              ) : (
+                <span style={{ color: '#4caf50', fontWeight: '500' }}>
+                  ✓ {signalements.length} signalement(s) • Double-cliquez pour en créer un nouveau
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* LA CARTE EN PLEIN ÉCRAN */}
-      <div 
-        ref={mapContainer} 
-        style={{ 
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%', 
-          height: '100vh',
-          overflow: 'hidden'
-        }}
-      />
-      
-      {/* Zoom indicator - en bas à droite */}
-      <div style={{
-        position: 'absolute',
-        bottom: '20px',
-        right: '20px',
-        background: 'rgba(255, 255, 255, 0.95)',
-        padding: '12px 18px',
-        borderRadius: '8px',
-        boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
-        fontSize: '13px',
-        zIndex: 1000,
-        border: '1px solid #e0e0e0'
-      }}>
-        <div style={{ fontWeight: 'bold', color: '#1976d2', fontSize: '15px' }}>
-          🔍 Zoom: {currentZoom.toFixed(1)}
-        </div>
-        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-          📍 {signalements.length} point(s) affichés
-        </div>
-        {selectedPoint && (
-          <div style={{ fontSize: '11px', color: '#9c27b0', marginTop: '4px', fontWeight: '600' }}>
-            ➕ Nouveau point sélectionné
-          </div>
-        )}
-      </div>
-      
-      {/* Panneau création - en bas à gauche */}
-      {selectedPoint && (
+        {/* Carte */}
+        <div 
+          ref={mapContainer} 
+          style={{ 
+            position: 'relative',
+            width: '100%', 
+            height: '70vh',
+            minHeight: '600px',
+            overflow: 'hidden',
+            borderRadius: '12px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.08)'
+          }}
+        />
+        {/* Zoom indicator - en bas à droite */}
         <div style={{
           position: 'absolute',
           bottom: '20px',
-          left: '20px',
-          maxWidth: '400px',
-          padding: '20px',
-          background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
-          borderRadius: '12px',
-          border: '2px solid #9c27b0',
-          boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)',
-          zIndex: 1000
+          right: '20px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          padding: '12px 18px',
+          borderRadius: '8px',
+          boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+          fontSize: '13px',
+          zIndex: 1000,
+          border: '1px solid #e0e0e0'
         }}>
-          <div style={{ marginBottom: '15px' }}>
-            <h4 style={{ margin: '0 0 10px 0', color: '#6a1b9a', fontSize: '18px' }}>
-              ➕ Nouveau signalement
-            </h4>
-            <div style={{ 
-              background: 'white', 
-              padding: '12px', 
-              borderRadius: '6px',
-              fontSize: '14px',
-              color: '#555'
-            }}>
-              <div style={{ marginBottom: '5px' }}>
-                <strong>Latitude:</strong> {selectedPoint.lat.toFixed(6)}
-              </div>
-              <div>
-                <strong>Longitude:</strong> {selectedPoint.lng.toFixed(6)}
+          <div style={{ fontWeight: 'bold', color: '#1976d2', fontSize: '15px' }}>
+            🔍 Zoom: {currentZoom.toFixed(1)}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            📍 {signalements.length} point(s) affichés
+          </div>
+          {selectedPoint && (
+            <div style={{ fontSize: '11px', color: '#9c27b0', marginTop: '4px', fontWeight: '600' }}>
+              ➕ Nouveau point sélectionné
+            </div>
+          )}
+        </div>
+        {/* Panneau création - en bas à gauche */}
+        {selectedPoint && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '20px',
+            maxWidth: '400px',
+            padding: '20px',
+            background: 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)',
+            borderRadius: '12px',
+            border: '2px solid #9c27b0',
+            boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)',
+            zIndex: 1000
+          }}>
+            <div style={{ marginBottom: '15px' }}>
+              <h4 style={{ margin: '0 0 10px 0', color: '#6a1b9a', fontSize: '18px' }}>
+                ➕ Nouveau signalement
+              </h4>
+              <div style={{ 
+                background: 'white', 
+                padding: '12px', 
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#555'
+              }}>
+                <div style={{ marginBottom: '5px' }}>
+                  <strong>Latitude:</strong> {selectedPoint.lat.toFixed(6)}
+                </div>
+                <div>
+                  <strong>Longitude:</strong> {selectedPoint.lng.toFixed(6)}
+                </div>
               </div>
             </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handleNavigateToForm}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                📝 Ouvrir le formulaire
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedPoint(null);
+                  if (tempMarkerRef.current) {
+                    tempMarkerRef.current.remove();
+                    tempMarkerRef.current = null;
+                  }
+                }}
+                style={{
+                  padding: '14px 20px',
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                ❌
+              </button>
+            </div>
           </div>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={handleNavigateToForm}
-              style={{
-                flex: 1,
-                padding: '14px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              📝 Ouvrir le formulaire
-            </button>
-            
-            <button
-              onClick={() => {
-                setSelectedPoint(null);
-                if (tempMarkerRef.current) {
-                  tempMarkerRef.current.remove();
-                  tempMarkerRef.current = null;
-                }
-              }}
-              style={{
-                padding: '14px 20px',
-                background: '#f44336',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              ❌
-            </button>
-          </div>
+        )}
+        {/* Instructions flottantes - en haut à gauche sous le header */}
+        <div style={{
+          position: 'absolute',
+          top: '120px',
+          left: '10px',
+          maxWidth: '350px',
+          padding: '12px 15px',
+          background: 'rgba(227, 242, 253, 0.95)',
+          borderRadius: '8px',
+          fontSize: '13px',
+          color: '#555',
+          border: '1px solid #bbdefb',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          zIndex: 9
+        }}>
         </div>
-      )}
-
-      {/* Instructions flottantes - en haut à gauche sous le header */}
-      <div style={{
-        position: 'absolute',
-        top: '120px',
-        left: '10px',
-        maxWidth: '350px',
-        padding: '12px 15px',
-        background: 'rgba(227, 242, 253, 0.95)',
-        borderRadius: '8px',
-        fontSize: '13px',
-        color: '#555',
-        border: '1px solid #bbdefb',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        zIndex: 9
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
-          <span style={{ fontSize: '16px' }}>💡</span>
-          <span style={{ fontWeight: '600', color: '#1976d2' }}>Conseils :</span>
-        </div>
-        <ul style={{ margin: '5px 0 0 28px', padding: 0, lineHeight: '1.8' }}>
-          <li>Cliquez sur les marqueurs colorés pour voir les détails</li>
-          <li><strong>Double-cliquez</strong> sur la carte pour créer un nouveau signalement</li>
-          <li>Zoomez pour une position précise</li>
-        </ul>
-      </div>
-
-      {/* Bouton création utilisateur - en haut à droite sous le header */}
-      <div style={{
-        position: 'absolute',
-        top: '120px',
-        right: '10px',
-        zIndex: 9
-      }}>
-        <button
-          onClick={() => navigate('/create-user')}
-          style={{
-            padding: '12px 24px',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
-          }}
-          onMouseOver={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
-          }}
-          onMouseOut={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(0)';
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
-          }}
-        >
-          👥 Créer un Utilisateur
-        </button>
-      </div>
+      </main>
     </div>
   );
 };

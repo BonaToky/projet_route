@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useNavigate, useLocation } from "react-router-dom";
 import 'leaflet/dist/leaflet.css';
 import './styles/login.css';
 
@@ -130,6 +131,10 @@ const ManagerDashboard = () => {
   const [editStatut, setEditStatut] = useState('');
   const [showUserModal, setShowUserModal] = useState(false);
   const [showBlockedUsersModal, setShowBlockedUsersModal] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+
 
   const authenticatedFetch = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('authToken');
@@ -984,13 +989,13 @@ const ManagerDashboard = () => {
 
         <div className="nav-menu">
           <button 
-            className={`nav-item ${currentView === 'map' ? 'active' : ''}`}
-            onClick={() => setCurrentView('map')}
+            className={`nav-item ${location.pathname === "/map" ? "active" : ""}`}
+            onClick={() => navigate("/map")}
           >
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M1 6V22L8 18L16 22L23 18V2L16 6L8 2L1 6Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M8 2V18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M16 6V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M1 6V22L8 18L16 22L23 18V2L16 6L8 2L1 6Z" stroke="currentColor" strokeWidth="2" />
+              <path d="M8 2V18" stroke="currentColor" strokeWidth="2" />
+              <path d="M16 6V22" stroke="currentColor" strokeWidth="2" />
             </svg>
             Carte
           </button>
@@ -1057,61 +1062,7 @@ const ManagerDashboard = () => {
                 </svg>
                 Synchroniser
               </button>
-            </div>
-            <div className="map-container" style={{ height: '70vh', minHeight: '600px' }}>
-              <MapContainer center={[-18.8792, 47.5079]} zoom={12} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  url="http://localhost:3000/styles/bright/{z}/{x}/{y}.png"
-                  attribution='© OpenStreetMap contributors'
-                  maxZoom={18}
-                />
-                <MapResizeFix />
-                {reports.map((report) => (
-                  <Marker 
-                    key={report.id} 
-                    position={[report.latitude, report.longitude]}
-                    icon={getIconForProblem(report.type_probleme)}
-                  >
-                    <Popup>
-                      <div className="custom-popup">
-                        <h4>{getProblemTypeLabel(report.type_probleme)}</h4>
-                        <div className="popup-row">
-                          <span className="popup-label">Surface</span>
-                          <span className="popup-value">{report.surface} m²</span>
-                        </div>
-                        <div className="popup-row">
-                          <span className="popup-label">Statut</span>
-                          <span className="popup-value">{report.statut}</span>
-                        </div>
-                        <div className="popup-row">
-                          <span className="popup-label">Date</span>
-                          <span className="popup-value">{report.date_ajoute.toLocaleDateString()}</span>
-                        </div>
-                        {report.travaux && (
-                          <>
-                            <div className="popup-row">
-                              <span className="popup-label">Entreprise</span>
-                              <span className="popup-value">{report.travaux.entreprise_nom}</span>
-                            </div>
-                            <div className="popup-row">
-                              <span className="popup-label">Budget</span>
-                              <span className="popup-value">{report.travaux.budget.toLocaleString()} Ar</span>
-                            </div>
-                            <div className="popup-row">
-                              <span className="popup-label">Avancement</span>
-                              <span className="popup-value">{report.travaux.avancement}%</span>
-                            </div>
-                          </>
-                        )}
-                        <p style={{margin: '12px 0 0 0', fontSize: '13px', color: 'rgba(255,255,255,0.6)'}}>
-                          {report.description}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            </div>
+            </div> 
           </>
         )}
 
