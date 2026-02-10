@@ -1,0 +1,37 @@
+{
+  "version": 8,
+  "name": "Madagascar Map",
+  "sources": {
+    "openmaptiles": {
+      "type": "vector",
+      "tiles": ["http://localhost:3000/data/openmaptiles/{z}/{x}/{y}.pbf"]
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#f0f9ff"
+      }
+    },
+    {
+      "id": "landuse",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "landuse",
+      "paint": {
+        "fill-color": "#e0f2e9"
+      }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "openmaptiles",
+      "source-layer": "water",
+      "paint": {
+        "fill-color": "#a0cfdf"
+      }
+    }
+  ]
+}
