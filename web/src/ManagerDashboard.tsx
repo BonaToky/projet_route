@@ -422,6 +422,79 @@ const ManagerDashboard = () => {
         throw new Error('Failed to fetch signalements from PostgreSQL');
       }
       const postgresSignalements = await signalementsResponse.json();
+
+      // 1b. Insérer les signalements Firestore absents dans PostgreSQL (non-bloquant pour l'affichage)
+      (async () => {
+        try {
+          const firestoreSnapshot = await getDocs(collection(db, 'signalements'));
+          const existingFirestoreIds = new Set(
+            postgresSignalements
+              .filter((s: any) => s.firestoreId)
+              .map((s: any) => s.firestoreId)
+          );
+
+          let inserted = 0;
+          for (const docSnap of firestoreSnapshot.docs) {
+            if (!existingFirestoreIds.has(docSnap.id)) {
+              try {
+                await authenticatedFetch('http://localhost:8080/api/signalements/sync', { method: 'GET' });
+                inserted++;
+                console.log(`✅ Sync déclenché pour signalement Firestore manquant: ${docSnap.id}`);
+                break; // Un seul sync global suffit pour tous les manquants
+              } catch (err) {
+                console.warn('Sync insertion warning:', err);
+              }
+            }
+          }
+
+          if (inserted > 0) {
+            // Re-fetch après insertion pour mettre à jour l'affichage
+            const refreshResponse = await authenticatedFetch('http://localhost:8080/api/signalements');
+            if (refreshResponse.ok) {
+              const refreshedSignalements = await refreshResponse.json();
+              const refreshTravauxResp = await authenticatedFetch('http://localhost:8080/api/travaux');
+              const refreshedTravaux = refreshTravauxResp.ok ? await refreshTravauxResp.json() : [];
+
+              const refreshedReports: Report[] = refreshedSignalements.map((sig: any) => {
+                const travaux = refreshedTravaux.find((t: any) => 
+                  t.signalement?.idSignalement === sig.idSignalement
+                );
+                const baseReport: Report = {
+                  id: sig.firestoreId || sig.idSignalement?.toString() || '',
+                  latitude: parseFloat(sig.latitude) || 0,
+                  longitude: parseFloat(sig.longitude) || 0,
+                  Id_User: sig.utilisateur?.idUtilisateur?.toString() || '',
+                  surface: parseFloat(sig.surface) || 0,
+                  type_probleme: sig.typeProbleme || '',
+                  description: sig.description || '',
+                  date_ajoute: sig.dateSignalement ? new Date(sig.dateSignalement) : new Date(),
+                  statut: sig.statut || 'nouveau',
+                };
+                if (travaux) {
+                  const ent = entreprises.find(e => e.idEntreprise === travaux.entreprise?.idEntreprise);
+                  return {
+                    ...baseReport,
+                    travaux: {
+                      id: travaux.id?.toString() || '',
+                      id_entreprise: travaux.entreprise?.idEntreprise || 0,
+                      budget: parseFloat(travaux.budget) || 0,
+                      entreprise_nom: ent ? ent.nom : 'Entreprise inconnue',
+                      date_debut_travaux: travaux.dateDebutTravaux ? new Date(travaux.dateDebutTravaux) : new Date(),
+                      date_fin_travaux: travaux.dateFinTravaux ? new Date(travaux.dateFinTravaux) : new Date(),
+                      avancement: parseFloat(travaux.avancement) || 0,
+                    }
+                  };
+                }
+                return baseReport;
+              });
+              console.log(`✅ ${refreshedReports.length} signalements après sync Firestore→PG`);
+              setReports(refreshedReports);
+            }
+          }
+        } catch (firestoreErr) {
+          console.warn('Firestore sync check skipped (offline?):', firestoreErr);
+        }
+      })();
       
       // 2. Récupérer tous les travaux depuis PostgreSQL
       const travauxResponse = await authenticatedFetch('http://localhost:8080/api/travaux');
@@ -502,16 +575,7 @@ const ManagerDashboard = () => {
     if (!editingReport) return;
 
     try {
-      // 0. Trigger sync to ensure signalement exists in PostgreSQL
-      try {
-        await authenticatedFetch('http://localhost:8080/api/signalements/sync', {
-          method: 'GET',
-        });
-      } catch (syncError) {
-        console.warn('Sync warning:', syncError);
-      }
-
-      // 1. Get PostgreSQL ID from Firebase ID
+      // 1. Get PostgreSQL ID from Firebase ID (direct, sans sync global)
       const signalementResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/firestore/${editingReport.id}`, {
         method: 'GET',
       });
@@ -541,12 +605,12 @@ const ManagerDashboard = () => {
         console.warn('Error updating status in PostgreSQL:', error);
       }
 
-      // 3. Mettre à jour dans Firestore
-      await updateDoc(doc(db, 'signalements', editingReport.id), {
+      // 3. Mettre à jour dans Firestore (non-bloquant)
+      updateDoc(doc(db, 'signalements', editingReport.id), {
         surface: parseFloat(editSurface),
         description: editDescription,
         statut: editStatut,
-      });
+      }).catch(err => console.warn('Firestore signalement update warning:', err));
 
       // Calculer automatiquement l'avancement basé sur le statut
       let avancementValue = 0;
@@ -570,181 +634,101 @@ const ManagerDashboard = () => {
           'Travaux terminés';
 
         if (editingReport.travaux) {
-          // Update existing travaux in PostgreSQL
-          // First, get the PostgreSQL ID from the Firestore ID
-          let postgresTravauxId = null;
-          try {
-            const lookupResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/firestore/${editingReport.travaux.id}`);
-            if (lookupResponse.ok) {
-              const postgresData = await lookupResponse.json();
-              postgresTravauxId = postgresData.id;
-            }
-          } catch (lookupError) {
-            console.warn('Failed to lookup PostgreSQL ID for travaux:', lookupError);
-          }
+          // Update existing travaux - utilise l'ID PostgreSQL directement
+          const postgresTravauxId = editingReport.travaux.id;
 
-          if (postgresTravauxId) {
-            // Update existing travaux - ne PAS envoyer le signalement dans l'update
-            const updateData = {
-              entreprise: { idEntreprise: parseInt(editEntreprise) },
-              budget: parseFloat(editBudget),
-              dateDebutTravaux: editDateDebut,
-              dateFinTravaux: editDateFin,
-              avancement: avancementValue,
-            };
+          const updateData = {
+            entreprise: { idEntreprise: parseInt(editEntreprise) },
+            budget: parseFloat(editBudget),
+            dateDebutTravaux: editDateDebut,
+            dateFinTravaux: editDateFin,
+            avancement: avancementValue,
+          };
 
-            const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(updateData),
-            });
-            if (!localUpdateResponse.ok) {
-              console.warn('Failed to update travaux in local database:', await localUpdateResponse.text());
-            } else {
-              // Créer l'historique dans PostgreSQL
-              try {
-                const historiqueData = {
-                  travaux: { id: postgresTravauxId },
-                  dateModification: new Date().toISOString(),
-                  avancement: avancementValue,
-                  commentaire: historiqueCommentaire,
-                };
-                const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}/historique`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(historiqueData),
-                });
-                if (!historiqueResponse.ok) {
-                  console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
-                }
-              } catch (histError) {
-                console.warn('Error creating historique in PostgreSQL:', histError);
-              }
-            }
-          } else {
-            // Travaux existe dans Firestore mais pas dans PostgreSQL - créer
-            const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+          const localUpdateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData),
+          });
+
+          if (localUpdateResponse.ok) {
+            // Historique PostgreSQL (non-bloquant)
+            authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}/historique`, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(travauxData),
-            });
-            
-            if (localCreateResponse.ok) {
-              const createdTravaux = await localCreateResponse.json();
-              postgresTravauxId = createdTravaux.id;
-
-              // Créer l'historique dans PostgreSQL
-              try {
-                const historiqueData = {
-                  travaux: { id: postgresTravauxId },
-                  dateModification: new Date().toISOString(),
-                  avancement: avancementValue,
-                  commentaire: historiqueCommentaire,
-                };
-                const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${postgresTravauxId}/historique`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify(historiqueData),
-                });
-                if (!historiqueResponse.ok) {
-                  console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
-                }
-              } catch (histError) {
-                console.warn('Error creating historique in PostgreSQL:', histError);
-              }
-            }
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                travaux: { id: postgresTravauxId },
+                dateModification: new Date().toISOString(),
+                avancement: avancementValue,
+                commentaire: historiqueCommentaire,
+              }),
+            }).catch(err => console.warn('Historique warning:', err));
+          } else {
+            console.warn('Failed to update travaux:', await localUpdateResponse.text());
           }
 
-          // Update in Firestore
+          // Firestore travaux update (non-bloquant)
           try {
             const travauxRef = doc(db, 'travaux', editingReport.travaux.id.toString());
-            await updateDoc(travauxRef, {
+            updateDoc(travauxRef, {
               budget: parseFloat(editBudget),
               id_entreprise: parseInt(editEntreprise),
               date_debut_travaux: new Date(editDateDebut),
               date_fin_travaux: new Date(editDateFin),
               avancement: avancementValue,
-            });
+            }).catch(err => console.warn('Firestore travaux update warning:', err));
 
-            // Créer l'historique dans Firestore
-            await addDoc(collection(db, 'historiques_travaux'), {
+            addDoc(collection(db, 'historiques_travaux'), {
               id_travaux: editingReport.travaux.id,
               date_modification: new Date(),
               avancement: avancementValue,
               commentaire: historiqueCommentaire,
-            });
+            }).catch(err => console.warn('Firestore historique warning:', err));
           } catch (firestoreError) {
-            console.warn('Failed to update travaux in Firestore:', firestoreError);
+            console.warn('Firestore warning:', firestoreError);
           }
         } else {
           // Create new travaux in PostgreSQL
           const localCreateResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(travauxData),
           });
-          
-          let newTravauxId = null;
+
           if (localCreateResponse.ok) {
             const createdTravaux = await localCreateResponse.json();
-            newTravauxId = createdTravaux.id;
 
-            // Créer l'historique dans PostgreSQL
-            try {
-              const historiqueData = {
-                travaux: { id: newTravauxId },
+            // Historique PostgreSQL (non-bloquant)
+            authenticatedFetch(`http://localhost:8080/api/travaux/${createdTravaux.id}/historique`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                travaux: { id: createdTravaux.id },
                 dateModification: new Date().toISOString(),
                 avancement: avancementValue,
                 commentaire: historiqueCommentaire,
-              };
-              const historiqueResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${newTravauxId}/historique`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(historiqueData),
-              });
-              if (!historiqueResponse.ok) {
-                console.warn('Failed to create historique in PostgreSQL:', await historiqueResponse.text());
-              }
-            } catch (histError) {
-              console.warn('Error creating historique in PostgreSQL:', histError);
-            }
+              }),
+            }).catch(err => console.warn('Historique warning:', err));
           } else {
-            console.warn('Failed to create travaux in local database:', await localCreateResponse.text());
+            console.warn('Failed to create travaux:', await localCreateResponse.text());
           }
 
-          // Create in Firestore
-          try {
-            const newTravauxDoc = await addDoc(collection(db, 'travaux'), {
-              id_signalement: editingReport.id,
-              budget: parseFloat(editBudget),
-              id_entreprise: parseInt(editEntreprise),
-              date_debut_travaux: new Date(editDateDebut),
-              date_fin_travaux: new Date(editDateFin),
-              avancement: avancementValue,
-            });
-
-            // Créer l'historique dans Firestore
-            await addDoc(collection(db, 'historiques_travaux'), {
+          // Firestore travaux create (non-bloquant)
+          addDoc(collection(db, 'travaux'), {
+            id_signalement: editingReport.id,
+            budget: parseFloat(editBudget),
+            id_entreprise: parseInt(editEntreprise),
+            date_debut_travaux: new Date(editDateDebut),
+            date_fin_travaux: new Date(editDateFin),
+            avancement: avancementValue,
+          }).then(newTravauxDoc => {
+            addDoc(collection(db, 'historiques_travaux'), {
               id_travaux: newTravauxDoc.id,
               date_modification: new Date(),
               avancement: avancementValue,
               commentaire: historiqueCommentaire,
-            });
-          } catch (firestoreError) {
-            console.warn('Failed to create travaux in Firestore:', firestoreError);
-          }
+            }).catch(err => console.warn('Firestore historique warning:', err));
+          }).catch(err => console.warn('Firestore travaux create warning:', err));
         }
       }
 
@@ -779,16 +763,7 @@ const ManagerDashboard = () => {
       'Travaux terminés';
 
     try {
-      // 0. Trigger sync to ensure signalement exists in PostgreSQL
-      try {
-        await authenticatedFetch('http://localhost:8080/api/signalements/sync', {
-          method: 'GET',
-        });
-      } catch (syncError) {
-        console.warn('Sync warning:', syncError);
-      }
-
-      // 1. Get PostgreSQL ID from Firebase ID
+      // 1. Get PostgreSQL ID from Firebase ID (direct, sans sync global)
       const signalementResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/firestore/${selectedReport.id}`, {
         method: 'GET',
       });
@@ -801,118 +776,89 @@ const ManagerDashboard = () => {
       const signalementData = await signalementResponse.json();
       const postgresSignalementId = signalementData.idSignalement;
 
-      // 2. Vérifier si des travaux existent déjà pour ce signalement
-      const checkResponse = await authenticatedFetch(`http://localhost:8080/api/signalements/${postgresSignalementId}`, {
-        method: 'GET',
-      });
+      // 2. Update ou Create basé sur les données locales (sans appel API supplémentaire)
+      if (selectedReport.travaux && selectedReport.travaux.id) {
+        // Update existing travaux directement
+        const updateData = {
+          signalement: { idSignalement: postgresSignalementId },
+          entreprise: { idEntreprise: parseInt(entreprise) },
+          budget: parseFloat(budget),
+          dateDebutTravaux: dateDebut,
+          dateFinTravaux: dateFin,
+          avancement: avancementValue,
+        };
 
-      if (checkResponse.ok) {
-        const signalement = await checkResponse.json();
-        if (signalement.travaux) {
-          // Update existing travaux
-          const updateData = {
-            signalement: { idSignalement: postgresSignalementId },
-            entreprise: { idEntreprise: parseInt(entreprise) },
-            budget: parseFloat(budget),
-            dateDebutTravaux: dateDebut,
-            dateFinTravaux: dateFin,
-            avancement: avancementValue,
-          };
+        const updateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${selectedReport.travaux.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
 
-          const updateResponse = await authenticatedFetch(`http://localhost:8080/api/travaux/${signalement.travaux.id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData), 
-          });
+        if (updateResponse.ok) {
+          const updatedTravaux = await updateResponse.json();
 
-          if (updateResponse.ok) {
-            const updatedTravaux = await updateResponse.json();
-            
-            // Créer l'historique
-            try {
-              const historiqueData = {
-                travaux: { id: updatedTravaux.id },
-                dateModification: new Date().toISOString(),
-                avancement: avancementValue,
-                commentaire: commentaire,
-              };
-              await authenticatedFetch(`http://localhost:8080/api/travaux/${updatedTravaux.id}/historique`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(historiqueData),
-              });
-            } catch (histError) {
-              console.warn('Error creating historique:', histError);
-            }
-
-            alert('✅ Travaux mis à jour avec succès dans PostgreSQL');
-            setSelectedReport(null);
-            setBudget('');
-            setEntreprise('');
-            setDateDebut('');
-            setDateFin('');
-            syncReports();
-            return;
-          }
-        }
-      }
-
-      // 3. Create new travaux if none exist
-      const travauxData = {
-        signalement: { idSignalement: postgresSignalementId },
-        entreprise: { idEntreprise: parseInt(entreprise) },
-        budget: parseFloat(budget),
-        dateDebutTravaux: dateDebut,
-        dateFinTravaux: dateFin,
-        avancement: avancementValue,
-      };
-
-      const localResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(travauxData),
-      });
-
-      if (localResponse.ok) {
-        const createdTravaux = await localResponse.json();
-
-        // Créer l'historique dans PostgreSQL
-        try {
-          const historiqueData = {
-            travaux: { id: createdTravaux.id },
-            dateModification: new Date().toISOString(),
-            avancement: avancementValue,
-            commentaire: commentaire,
-          };
-          await authenticatedFetch(`http://localhost:8080/api/travaux/${createdTravaux.id}/historique`, {
+          // Créer l'historique (non-bloquant)
+          authenticatedFetch(`http://localhost:8080/api/travaux/${updatedTravaux.id}/historique`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(historiqueData),
-          });
-        } catch (histError) {
-          console.warn('Error creating historique:', histError);
-        }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              travaux: { id: updatedTravaux.id },
+              dateModification: new Date().toISOString(),
+              avancement: avancementValue,
+              commentaire: commentaire,
+            }),
+          }).catch(err => console.warn('Historique warning:', err));
 
-        alert('✅ Travaux ajoutés avec succès dans PostgreSQL');
-        setSelectedReport(null);
-        setBudget('');
-        setEntreprise('');
-        setDateDebut('');
-        setDateFin('');
-        syncReports();
+          alert('✅ Travaux mis à jour avec succès dans PostgreSQL');
+        } else {
+          const errorText = await updateResponse.text();
+          alert('❌ Erreur lors de la mise à jour: ' + errorText);
+        }
       } else {
-        const errorText = await localResponse.text();
-        console.error('Failed to save travaux:', errorText);
-        alert('❌ Erreur lors de la sauvegarde des travaux: ' + errorText);
+        // 3. Create new travaux
+        const travauxData = {
+          signalement: { idSignalement: postgresSignalementId },
+          entreprise: { idEntreprise: parseInt(entreprise) },
+          budget: parseFloat(budget),
+          dateDebutTravaux: dateDebut,
+          dateFinTravaux: dateFin,
+          avancement: avancementValue,
+        };
+
+        const localResponse = await authenticatedFetch('http://localhost:8080/api/travaux', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(travauxData),
+        });
+
+        if (localResponse.ok) {
+          const createdTravaux = await localResponse.json();
+
+          // Créer l'historique (non-bloquant)
+          authenticatedFetch(`http://localhost:8080/api/travaux/${createdTravaux.id}/historique`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              travaux: { id: createdTravaux.id },
+              dateModification: new Date().toISOString(),
+              avancement: avancementValue,
+              commentaire: commentaire,
+            }),
+          }).catch(err => console.warn('Historique warning:', err));
+
+          alert('✅ Travaux ajoutés avec succès dans PostgreSQL');
+        } else {
+          const errorText = await localResponse.text();
+          alert('❌ Erreur lors de la sauvegarde: ' + errorText);
+        }
       }
+
+      setSelectedReport(null);
+      setBudget('');
+      setEntreprise('');
+      setDateDebut('');
+      setDateFin('');
+      syncReports();
     } catch (error) {
       console.error('Error saving travaux:', error);
       alert('Error saving travaux');
@@ -1451,7 +1397,7 @@ const ManagerDashboard = () => {
         {/* Travaux Modal */}
         {selectedReport && (
           <div className="modal-overlay" onClick={() => setSelectedReport(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: '560px'}}>
               <div className="modal-header">
                 <h3 className="modal-title">Gérer les Travaux</h3>
                 <button className="modal-close" onClick={() => setSelectedReport(null)}>
@@ -1460,30 +1406,35 @@ const ManagerDashboard = () => {
                   </svg>
                 </button>
               </div>
-              <div className="form-group">
-                <label className="form-label">Budget (Ar)</label>
-                <input type="number" className="form-input" value={budget} onChange={(e) => setBudget(e.target.value)} />
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Entreprise</label>
+                  <select className="form-select" value={entreprise} onChange={(e) => setEntreprise(e.target.value)}>
+                    <option value="">Sélectionner une entreprise</option>
+                    {entreprises.map((ent) => (
+                      <option key={ent.idEntreprise} value={ent.idEntreprise.toString()}>{ent.nom}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Budget (Ar)</label>
+                  <input type="number" className="form-input" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Date Début</label>
+                  <input type="date" className="form-input" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Date Fin</label>
+                  <input type="date" className="form-input" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Entreprise</label>
-                <select className="form-select" value={entreprise} onChange={(e) => setEntreprise(e.target.value)}>
-                  <option value="">Sélectionner une entreprise</option>
-                  {entreprises.map((ent) => (
-                    <option key={ent.idEntreprise} value={ent.idEntreprise.toString()}>{ent.nom}</option>
-                  ))}
-                </select>
+              <div className="form-info-banner">
+                <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor"/>
+                </svg>
+                <span>L'avancement est calculé automatiquement selon le statut du signalement.</span>
               </div>
-              <div className="form-group">
-                <label className="form-label">Date Début</label>
-                <input type="date" className="form-input" value={dateDebut} onChange={(e) => setDateDebut(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Date Fin</label>
-                <input type="date" className="form-input" value={dateFin} onChange={(e) => setDateFin(e.target.value)} />
-              </div>
-              <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '12px'}}>
-                💡 L'avancement est calculé automatiquement selon le statut du signalement
-              </p>
               <div className="modal-footer">
                 <button className="btn btn-secondary" onClick={() => setSelectedReport(null)}>Annuler</button>
                 <button className="btn btn-primary" onClick={saveTravaux}>Sauvegarder</button>
@@ -1495,7 +1446,7 @@ const ManagerDashboard = () => {
         {/* Edit Report Modal */}
         {editingReport && (
           <div className="modal-overlay" onClick={() => setEditingReport(null)}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-content modal-wide" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h3 className="modal-title">Modifier le Signalement</h3>
                 <button className="modal-close" onClick={() => setEditingReport(null)}>
@@ -1504,46 +1455,56 @@ const ManagerDashboard = () => {
                   </svg>
                 </button>
               </div>
-              <div className="form-group">
-                <label className="form-label">Surface (m²)</label>
-                <input type="number" className="form-input" value={editSurface} onChange={(e) => setEditSurface(e.target.value)} />
+              <div className="form-section-label">Informations du signalement</div>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Surface (m²)</label>
+                  <input type="number" className="form-input" value={editSurface} onChange={(e) => setEditSurface(e.target.value)} placeholder="0" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Statut</label>
+                  <select className="form-select" value={editStatut} onChange={(e) => setEditStatut(e.target.value)}>
+                    <option value="nouveau">Nouveau</option>
+                    <option value="en cours">En cours</option>
+                    <option value="terminé">Terminé</option>
+                  </select>
+                </div>
               </div>
               <div className="form-group">
                 <label className="form-label">Description</label>
-                <textarea className="form-textarea" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={3} />
+                <textarea className="form-textarea" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} rows={2} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Statut</label>
-                <select className="form-select" value={editStatut} onChange={(e) => setEditStatut(e.target.value)}>
-                  <option value="nouveau">Nouveau</option>
-                  <option value="en cours">En cours</option>
-                  <option value="terminé">Terminé</option>
-                </select>
+              <div className="form-divider"></div>
+              <div className="form-section-label">Détails des travaux</div>
+              <div className="form-grid-2">
+                <div className="form-group">
+                  <label className="form-label">Entreprise</label>
+                  <select className="form-select" value={editEntreprise} onChange={(e) => setEditEntreprise(e.target.value)}>
+                    <option value="">Sélectionner une entreprise</option>
+                    {entreprises.map((ent) => (
+                      <option key={ent.idEntreprise} value={ent.idEntreprise}>{ent.nom}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Budget (Ar)</label>
+                  <input type="number" className="form-input" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} placeholder="0" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Date Début Travaux</label>
+                  <input type="date" className="form-input" value={editDateDebut} onChange={(e) => setEditDateDebut(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Date Fin Travaux</label>
+                  <input type="date" className="form-input" value={editDateFin} onChange={(e) => setEditDateFin(e.target.value)} />
+                </div>
               </div>
-              <div className="form-group">
-                <label className="form-label">Entreprise</label>
-                <select className="form-select" value={editEntreprise} onChange={(e) => setEditEntreprise(e.target.value)}>
-                  <option value="">Sélectionner une entreprise</option>
-                  {entreprises.map((ent) => (
-                    <option key={ent.idEntreprise} value={ent.idEntreprise}>{ent.nom}</option>
-                  ))}
-                </select>
+              <div className="form-info-banner">
+                <svg viewBox="0 0 24 24" fill="none" style={{width: '16px', height: '16px', flexShrink: 0}}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor"/>
+                </svg>
+                <span>L'avancement est calculé automatiquement : Nouveau = 0%, En cours = 50%, Terminé = 100%</span>
               </div>
-              <div className="form-group">
-                <label className="form-label">Budget (Ar)</label>
-                <input type="number" className="form-input" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Date Début Travaux</label>
-                <input type="date" className="form-input" value={editDateDebut} onChange={(e) => setEditDateDebut(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Date Fin Travaux</label>
-                <input type="date" className="form-input" value={editDateFin} onChange={(e) => setEditDateFin(e.target.value)} />
-              </div>
-              <p style={{color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginTop: '12px'}}>
-                💡 L'avancement est calculé automatiquement selon le statut : Nouveau = 0%, En cours = 50%, Terminé = 100%
-              </p>
               <div className="modal-footer">
                 <button className="btn btn-secondary" onClick={() => setEditingReport(null)}>Annuler</button>
                 <button className="btn btn-primary" onClick={saveReportChanges}>Sauvegarder</button>
