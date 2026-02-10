@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Sensitive files ###
+# Firebase service account (do not push to remote - Google disables credentials if committed)
+src/main/resources/firebase-service-account.json
