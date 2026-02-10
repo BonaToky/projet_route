@@ -436,6 +436,79 @@ const ManagerDashboard = () => {
         throw new Error('Failed to fetch signalements from PostgreSQL');
       }
       const postgresSignalements = await signalementsResponse.json();
+
+      // 1b. Insérer les signalements Firestore absents dans PostgreSQL (non-bloquant pour l'affichage)
+      (async () => {
+        try {
+          const firestoreSnapshot = await getDocs(collection(db, 'signalements'));
+          const existingFirestoreIds = new Set(
+            postgresSignalements
+              .filter((s: any) => s.firestoreId)
+              .map((s: any) => s.firestoreId)
+          );
+
+          let inserted = 0;
+          for (const docSnap of firestoreSnapshot.docs) {
+            if (!existingFirestoreIds.has(docSnap.id)) {
+              try {
+                await authenticatedFetch('http://localhost:8080/api/signalements/sync', { method: 'GET' });
+                inserted++;
+                console.log(`✅ Sync déclenché pour signalement Firestore manquant: ${docSnap.id}`);
+                break; // Un seul sync global suffit pour tous les manquants
+              } catch (err) {
+                console.warn('Sync insertion warning:', err);
+              }
+            }
+          }
+
+          if (inserted > 0) {
+            // Re-fetch après insertion pour mettre à jour l'affichage
+            const refreshResponse = await authenticatedFetch('http://localhost:8080/api/signalements');
+            if (refreshResponse.ok) {
+              const refreshedSignalements = await refreshResponse.json();
+              const refreshTravauxResp = await authenticatedFetch('http://localhost:8080/api/travaux');
+              const refreshedTravaux = refreshTravauxResp.ok ? await refreshTravauxResp.json() : [];
+
+              const refreshedReports: Report[] = refreshedSignalements.map((sig: any) => {
+                const travaux = refreshedTravaux.find((t: any) => 
+                  t.signalement?.idSignalement === sig.idSignalement
+                );
+                const baseReport: Report = {
+                  id: sig.firestoreId || sig.idSignalement?.toString() || '',
+                  latitude: parseFloat(sig.latitude) || 0,
+                  longitude: parseFloat(sig.longitude) || 0,
+                  Id_User: sig.utilisateur?.idUtilisateur?.toString() || '',
+                  surface: parseFloat(sig.surface) || 0,
+                  type_probleme: sig.typeProbleme || '',
+                  description: sig.description || '',
+                  date_ajoute: sig.dateSignalement ? new Date(sig.dateSignalement) : new Date(),
+                  statut: sig.statut || 'nouveau',
+                };
+                if (travaux) {
+                  const ent = entreprises.find(e => e.idEntreprise === travaux.entreprise?.idEntreprise);
+                  return {
+                    ...baseReport,
+                    travaux: {
+                      id: travaux.id?.toString() || '',
+                      id_entreprise: travaux.entreprise?.idEntreprise || 0,
+                      budget: parseFloat(travaux.budget) || 0,
+                      entreprise_nom: ent ? ent.nom : 'Entreprise inconnue',
+                      date_debut_travaux: travaux.dateDebutTravaux ? new Date(travaux.dateDebutTravaux) : new Date(),
+                      date_fin_travaux: travaux.dateFinTravaux ? new Date(travaux.dateFinTravaux) : new Date(),
+                      avancement: parseFloat(travaux.avancement) || 0,
+                    }
+                  };
+                }
+                return baseReport;
+              });
+              console.log(`✅ ${refreshedReports.length} signalements après sync Firestore→PG`);
+              setReports(refreshedReports);
+            }
+          }
+        } catch (firestoreErr) {
+          console.warn('Firestore sync check skipped (offline?):', firestoreErr);
+        }
+      })();
       
       // 2. Récupérer tous les travaux depuis PostgreSQL
       const travauxResponse = await authenticatedFetch('http://localhost:8080/api/travaux');
